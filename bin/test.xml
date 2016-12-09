@@ -22,7 +22,7 @@
 			<style draw="same" color="blue" fca="blue, 0.25" />
 		</Histo>
 
-		<Legend>
+		<Legend title="Stuff">
 			<Entry name="h1" title="gaussian" opt="lpe"/>
 			<Entry name="h2" title="Landau" opt="lpe" />
 			
