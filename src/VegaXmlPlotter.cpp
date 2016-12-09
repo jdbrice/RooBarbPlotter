@@ -83,6 +83,7 @@ void VegaXmlPlotter::makePlots(){
 		makeHistograms( path );
 		makeLatex(""); // global first
 		makeLatex(path);
+		makeLine( path );
 		makeExports( path );
 
 		// // clean up first
@@ -318,6 +319,30 @@ void VegaXmlPlotter::makeLatex( string _path ){
 							config.getFloat( ltpath + ":y" ), 
 							config.getXString( ltpath + ":text" ).c_str() );
 	}
+}
+
+void VegaXmlPlotter::makeLine( string _path ){
+	INFO( classname(), "_path=" << quote(_path) );
+
+	vector<string> line_paths = config.childrenOf( _path, "TLine", 1 );
+	for ( string ltpath : line_paths ){
+		
+		TLine * line = new TLine( 
+			config.getDouble( _path + ":x1", 0.0 ),
+			config.getDouble( _path + ":y1", 0.0 ),
+			config.getDouble( _path + ":x2", 0.0 ),
+			config.getDouble( _path + ":y2", 0.0 ) );
+
+		INFO( classname(), "TLine @ " << ltpath );
+		
+		// TODO: add string color support here
+		line->SetLineColor( config.getInt( _path + ":color" ) );
+		line->SetLineWidth( config.getInt( _path + ":width" ) );
+		line->SetLineStyle( config.getInt( _path + ":style" ) );
+
+		line->Draw();
+	}
+
 }
 
 void VegaXmlPlotter::makeExports( string _path ){

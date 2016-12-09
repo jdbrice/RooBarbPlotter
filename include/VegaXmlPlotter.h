@@ -50,6 +50,7 @@ public:
 	virtual void makeHistograms( string _path );
 	virtual void makeLegend( string _path, map<string, TH1*> &histos );
 	virtual void makeLatex( string _path );
+	virtual void makeLine( string _path );
 	virtual void makeExports( string _path );
 
 	virtual TH1* makeHistoFromDataTree( string _path, int iHist );
