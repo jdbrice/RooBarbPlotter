@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root>
+	<Task name="skimmer" type="VegaXmlPlotter" config="" nodePath="" />
+
+	<!-- List your data sources -->
+	<!-- Can be files or trees, later access them by name -->
+	<Data name="sample" url="sample_data.root" />
+
+
+	<!-- Things out here apply to all plots unless overriden -->
+	<Margins left="0.10" right="0.12" top="0.1" bottom="0.15" />
+	<TLatex x="0.30" y="0.87" text="Dataset details here" size="0.03"/>
+
+	<TCanvas width="1000" height="700" />
+
+	<Plot>
+		<Histo data="sample" name="h1" style="styles.TH1">
+			<style logy="1" />
+		</Histo>
+
+		<Histo data="sample" name="h2" style="styles.TH1">
+			<style draw="same" color="blue" fca="blue, 0.25" />
+		</Histo>
+
+		<Legend>
+			<Entry name="h1" title="gaussian" opt="lpe"/>
+			<Entry name="h2" title="Landau" opt="lpe" />
+			
+			<Position x1="0.15" x2="0.35" y1="0.6" y2="0.8"/>
+		</Legend>
+
+		<Export url="h1.png" />
+	</Plot>
+
+
+	<styles>
+		<TH1 title="basic TH1 style; X [units]; Y [units]" color="red" />
+	</styles>
+
+
+</root>
