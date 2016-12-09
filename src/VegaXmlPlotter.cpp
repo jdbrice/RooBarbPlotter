@@ -327,20 +327,21 @@ void VegaXmlPlotter::makeLine( string _path ){
 	vector<string> line_paths = config.childrenOf( _path, "TLine", 1 );
 	for ( string ltpath : line_paths ){
 		
+		INFO( classname(), "Line (" << config.getDouble( ltpath + ":x1", 0.0 ) << ", " << config.getDouble( ltpath + ":y1", 0.0 ) << ") -> (" << config.getDouble( ltpath + ":x2", 0.0 ) << ", " << config.getDouble( ltpath + ":y2", 0.0 ) << ")" )
 		TLine * line = new TLine( 
-			config.getDouble( _path + ":x1", 0.0 ),
-			config.getDouble( _path + ":y1", 0.0 ),
-			config.getDouble( _path + ":x2", 0.0 ),
-			config.getDouble( _path + ":y2", 0.0 ) );
+			config.getDouble( ltpath + ":x1", 0.0 ),
+			config.getDouble( ltpath + ":y1", 0.0 ),
+			config.getDouble( ltpath + ":x2", 0.0 ),
+			config.getDouble( ltpath + ":y2", 0.0 ) );
 
 		INFO( classname(), "TLine @ " << ltpath );
 		
 		// TODO: add string color support here
-		line->SetLineColor( config.getInt( _path + ":color" ) );
-		line->SetLineWidth( config.getInt( _path + ":width" ) );
-		line->SetLineStyle( config.getInt( _path + ":style" ) );
+		line->SetLineColor( config.getInt( ltpath + ":color", 1 ) );
+		line->SetLineWidth( config.getInt( ltpath + ":width", 1 ) );
+		line->SetLineStyle( config.getInt( ltpath + ":style", 2 ) );
 
-		line->Draw();
+		line->Draw("same");
 	}
 
 }
