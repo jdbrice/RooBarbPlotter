@@ -233,7 +233,7 @@ void VegaXmlPlotter::makeHistograms( string _path ){
 			// INFO( classname(), config.getXString( hpath + ".style:title" ) );
 			// h->SetTitle( config.getXString( hpath + ".style:title" ).c_str() );
 		} else {
-			h->Draw( "same" );
+			// h->Draw( "same" );
 		}
 		
 
