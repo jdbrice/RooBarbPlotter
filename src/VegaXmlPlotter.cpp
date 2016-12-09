@@ -80,10 +80,12 @@ void VegaXmlPlotter::makePlots(){
 			gStyle->SetPalette( config.getInt( path + ".Palette" ) );
 		}
 
-		makeHistograms( path );
+		map<string, TH1*> histos = makeHistograms( path );
 		makeLatex(""); // global first
 		makeLatex(path);
 		makeLine( path );
+		makeLegend( path, histos );
+
 		makeExports( path );
 
 		// // clean up first
@@ -144,7 +146,7 @@ TH1* VegaXmlPlotter::findHistogram( string _path, int iHist ){
 	return nullptr;
 }
 
-void VegaXmlPlotter::makeHistograms( string _path ){
+map<string, TH1*> VegaXmlPlotter::makeHistograms( string _path ){
 	Logger::setGlobalLogLevel( "debug" );
 
 	TCanvas * c = makeCanvas( _path ); 
@@ -257,7 +259,7 @@ void VegaXmlPlotter::makeHistograms( string _path ){
 		iHist++;
 	}
 
-	makeLegend( _path, histos );
+	return histos;
 
 } // makeHistograms
 

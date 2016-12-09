@@ -47,7 +47,7 @@ public:
 	virtual void makePlots();
 	virtual void makeMargins( string _path );
 	virtual TH1* findHistogram( string _path, int iHist );
-	virtual void makeHistograms( string _path );
+	virtual map<string, TH1*> makeHistograms( string _path );
 	virtual void makeLegend( string _path, map<string, TH1*> &histos );
 	virtual void makeLatex( string _path );
 	virtual void makeLine( string _path );
