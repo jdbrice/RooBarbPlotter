@@ -13,6 +13,7 @@ void VegaXmlPlotter::make() {
 
 	Logger::setGlobalLogLevel( "debug" );
 	makePlots();
+	makePlotTemplates();
 
 	if ( dataOut ){
 		dataOut->Write();
@@ -71,30 +72,44 @@ void VegaXmlPlotter::makeOutputFile(){
 	}
 }
 
+void VegaXmlPlotter::makePlotTemplates(){
+	vector<string> plott_paths = config.childrenOf( nodePath, "PlotTemplate" );
+	INFO( classname(), "Found " << plott_paths.size() << plural( plott_paths.size(), " Plot", " Plots" ) );
+	for ( string path : plott_paths ){
+		vector<string> names = config.getStringVector( path + ":names" );
+		int iPlot = 0;
+		for ( string name : names ){
+
+			// set the global vars for this template
+			config.set( "name", name );
+			config.set( "iPlot", ts(iPlot) );
+
+			makePlot( path );
+			iPlot++;
+		}
+		
+	}
+}
+
+void VegaXmlPlotter::makePlot( string _path ){
+	if ( config.exists( _path + ".Palette" ) ){
+		gStyle->SetPalette( config.getInt( _path + ".Palette" ) );
+	}
+
+	map<string, TH1*> histos = makeHistograms( _path );
+	makeLatex(""); // global first
+	makeLatex(_path);
+	makeLine( _path );
+	makeLegend( _path, histos );
+
+	makeExports( _path );
+}
+
 void VegaXmlPlotter::makePlots(){
 	vector<string> plot_paths = config.childrenOf( nodePath, "Plot" );
 	INFO( classname(), "Found " << plot_paths.size() << plural( plot_paths.size(), " Plot", " Plots" ) );
 	for ( string path : plot_paths ){
-
-		if ( config.exists( path + ".Palette" ) ){
-			gStyle->SetPalette( config.getInt( path + ".Palette" ) );
-		}
-
-		map<string, TH1*> histos = makeHistograms( path );
-		makeLatex(""); // global first
-		makeLatex(path);
-		makeLine( path );
-		makeLegend( path, histos );
-
-		makeExports( path );
-
-		// // clean up first
-		// for ( TLatex * tl : activeLatex ){
-		// 	INFO( classname(), "DELETEING LATEX" );
-		// 	tl->Delete();
-		// }
-		// activeLatex.clear();
-		// if ( gPad ) { gPad->Clear(); }
+		makePlot( path );
 	}
 }
 

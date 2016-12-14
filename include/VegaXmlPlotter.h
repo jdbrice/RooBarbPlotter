@@ -45,6 +45,8 @@ public:
 
 	virtual void makeOutputFile();
 	virtual void makePlots();
+	virtual void makePlot( string _path );
+	virtual void makePlotTemplates();
 	virtual void makeMargins( string _path );
 	virtual TH1* findHistogram( string _path, int iHist );
 	virtual map<string, TH1*> makeHistograms( string _path );
