@@ -199,9 +199,7 @@ map<string, TH1*> VegaXmlPlotter::makeHistograms( string _path ){
 		if ( config.exists( hpath + ".Scale" ) && config.getDouble( hpath + ".Scale" ) ){
 			h->Scale( config.getDouble( hpath + ".Scale" ) );
 		}
-		if ( config.exists( hpath + ".Norm" ) && config.getBool( hpath + ".Norm", true ) ){
-			h->Scale( 1.0 / h->Integral() );
-		}
+		
 		if ( config.exists( hpath + ".RebinX" ) && config.getDouble( hpath + ".RebinX" ) ){
 			h->RebinX( config.getDouble( hpath + ".RebinX" ) );
 		}
@@ -247,6 +245,10 @@ map<string, TH1*> VegaXmlPlotter::makeHistograms( string _path ){
 
 			TH1 * hOther = ((TH2*)h)->ProjectionX( npy.c_str(), b1, b2 );
 			h = hOther;
+		}
+
+		if ( config.exists( hpath + ".Norm" ) && config.getBool( hpath + ".Norm", true ) ){
+			h->Scale( 1.0 / h->Integral() );
 		}
 
 
