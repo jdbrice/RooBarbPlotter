@@ -229,10 +229,13 @@ map<string, TH1*> VegaXmlPlotter::makeHistograms( string _path ){
 
 			TH1 * hOther = ((TH2*)h)->ProjectionY( npy.c_str(), b1, b2 );
 			h = hOther;
+
+			// add it to the record
+			histos[ npy ] = h;
 		}
 
 		if ( config.exists( hpath + ".ProjectionX" ) ){
-			string npy = data + "/" + name + "_px";
+			string npx = data + "/" + name + "_px";
 
 			int b1 = config.getInt( hpath + ".ProjectionX:b1", 0 );
 			if ( config.exists( hpath + ".ProjectionX:y1" ) )
@@ -243,8 +246,10 @@ map<string, TH1*> VegaXmlPlotter::makeHistograms( string _path ){
 				b2 = ((TH2*)h)->GetYaxis()->FindBin( config.getDouble( hpath + ".ProjectionX:y2", -1 ) );
 
 
-			TH1 * hOther = ((TH2*)h)->ProjectionX( npy.c_str(), b1, b2 );
+			TH1 * hOther = ((TH2*)h)->ProjectionX( npx.c_str(), b1, b2 );
 			h = hOther;
+
+			histos[ npx ] = h;
 		}
 
 		if ( config.exists( hpath + ".Norm" ) && config.getBool( hpath + ".Norm", true ) ){
