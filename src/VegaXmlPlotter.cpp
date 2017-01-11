@@ -307,7 +307,7 @@ void VegaXmlPlotter::makeLegend( string _path, map<string, TH1*> &histos ){
 		if ( config.exists(  _path + ".Legend:title" ) ) {
 			leg->SetHeader( config.getXString( _path + ".Legend:title" ).c_str() );
 		}
-		leg->SetNColumns( config.getInt( _path + ".Legend:columns" ) );
+		leg->SetNColumns( config.getInt( _path + ".Legend:columns", 1 ) );
 
 		vector<string> entries = config.childrenOf( _path + ".Legend", "Entry" );
 
