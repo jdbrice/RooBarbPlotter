@@ -253,7 +253,8 @@ map<string, TH1*> VegaXmlPlotter::makeHistograms( string _path ){
 		}
 
 		if ( config.exists( hpath + ".Norm" ) && config.getBool( hpath + ".Norm", true ) ){
-			h->Scale( 1.0 / h->Integral() );
+			if ( nullptr != h && h->Integral() > 0 )
+				h->Scale( 1.0 / h->Integral() );
 		}
 
 
