@@ -220,10 +220,14 @@ map<string, TH1*> VegaXmlPlotter::makeHistograms( string _path ){
 		if ( config.exists( hpath + ".ProjectionY" ) ){
 			string npy = data + "/" + name + "_py";
 
-			int b1 = config.getInt( hpath + ".ProjectionY:b1", 
-					 ((TH2*)h)->GetXaxis()->FindBin( config.getDouble( hpath + ".ProjectionY:x1", 0 ) ) );
-			int b2 = config.getInt( hpath + ".ProjectionY:b2", 
-			 		((TH2*)h)->GetXaxis()->FindBin( config.getDouble( hpath + ".ProjectionY:x2", -1 ) ) );
+			int b1 = config.getInt( hpath + ".ProjectionY:b1", 0 );
+					 
+			if ( config.exists( hpath + ".ProjectionY:x1" ) )
+				b1 = ((TH2*)h)->GetXaxis()->FindBin( config.getDouble( hpath + ".ProjectionY:x1", 0 ) );
+
+			int b2 = config.getInt( hpath + ".ProjectionY:b2", -1 );
+			if ( config.exists( hpath + ".ProjectionY:x2" ) )
+				b2 = ((TH2*)h)->GetXaxis()->FindBin( config.getDouble( hpath + ".ProjectionY:x2", -1 ) );
 
 			TH1 * hOther = ((TH2*)h)->ProjectionY( npy.c_str(), b1, b2 );
 			h = hOther;
@@ -232,10 +236,14 @@ map<string, TH1*> VegaXmlPlotter::makeHistograms( string _path ){
 		if ( config.exists( hpath + ".ProjectionX" ) ){
 			string npy = data + "/" + name + "_px";
 
-			int b1 = config.getInt( hpath + ".ProjectionX:b1", 
-					 ((TH2*)h)->GetYaxis()->FindBin( config.getDouble( hpath + ".ProjectionX:y1", 0 ) ) );
-			int b2 = config.getInt( hpath + ".ProjectionX:b2", 
-			 		((TH2*)h)->GetYaxis()->FindBin( config.getDouble( hpath + ".ProjectionX:y2", -1 ) ) );
+			int b1 = config.getInt( hpath + ".ProjectionX:b1", 0 );
+			if ( config.exists( hpath + ".ProjectionX:y1" ) )
+				b1 = ((TH2*)h)->GetYaxis()->FindBin( config.getDouble( hpath + ".ProjectionX:y2", -1 ) );
+			
+			int b2 = config.getInt( hpath + ".ProjectionX:b2", -1 );
+			if ( config.exists( hpath + ".ProjectionX:y2" ) )
+				b2 = ((TH2*)h)->GetYaxis()->FindBin( config.getDouble( hpath + ".ProjectionX:y2", -1 ) );
+
 
 			TH1 * hOther = ((TH2*)h)->ProjectionX( npy.c_str(), b1, b2 );
 			h = hOther;
