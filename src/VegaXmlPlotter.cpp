@@ -155,8 +155,11 @@ TH1* VegaXmlPlotter::findHistogram( string _path, int iHist ){
 	}
 
 	// finally look for histos we made and named in the ttree drawing
-	if ( globalHistos.count( name ) > 0 && globalHistos[ name ] )
+	if ( globalHistos.count( name ) > 0 && globalHistos[ name ] ){
+		INFOC( "Found histogram in mem pool" );
 		return globalHistos[ name ];
+	}
+
 
 	return nullptr;
 }
@@ -186,8 +189,15 @@ map<string, TH1*> VegaXmlPlotter::makeHistograms( string _path ){
 		TH1 *h = findHistogram( hpath, iHist );
 		INFO( classname(), "Got " << h );
 		
-		if ( nullptr == h ) continue;
+
+		for (auto kv : histos ){
+			INFOC( "mem pool : " << kv.first );
+		}
+
+		// if ( nullptr == h && (histos.count(name) <= 0 || nullptr == histos[name] ) ) continue;
 		
+		if ( nullptr == h ) h = histos[name];
+
 		// These maight not be unique for multiple datasets so use at your own risk
 		histos[ name ] = h;
 		// always add the fqn -> data:name
@@ -209,23 +219,48 @@ map<string, TH1*> VegaXmlPlotter::makeHistograms( string _path ){
 		if ( config.exists( hpath + ".Divide" ) ){
 			TH1 * hOther = findHistogram( hpath + ".Divide", iHist * 1000 );
 			if ( hOther ){
-				h->Divide( hOther );
+				string new_name = config.getXString( hpath + ".Divide:save_as", name + "_div_" + hOther->GetName() );
+				INFOC( "Divide histograms and saving as " << quote( new_name ) );
+				TH1 * hDiv = (TH1*)h->Clone( new_name.c_str() );
+				hDiv->Divide( hOther );
+				histos[ new_name ] = hDiv;
+				if ( globalHistos.count( new_name ) == 0 )
+					globalHistos[ new_name ] = hDiv;
+				else { ERRORC( "Cannot save as " << quote( new_name ) << " duplicate exists" ); }
+
+				h = hDiv;
 			} else {
 				ERROR( classname(), "Cannot divide by nullptr" );
 			}
 		}
 
+		if ( config.exists( hpath + ".Add" ) ){
+			string p = hpath + ".Add";
+			double mod = config.getDouble( p + ":mod", 1.0 );
+			TH1 * hOther = findHistogram( p, iHist * 2000 );
+			if ( hOther ){
+				h->Add( hOther, mod );
+			} else {
+				ERRORC( "Cannot find histogram to add" );
+			}
+		}
+
 		if ( config.exists( hpath + ".ProjectionY" ) ){
+			string p = hpath + ".ProjectionY";
 			string npy = data + "/" + name + "_py";
 
-			int b1 = config.getInt( hpath + ".ProjectionY:b1", 0 );
+			int b1 = config.getInt( p + ":b1", 0 );
 					 
-			if ( config.exists( hpath + ".ProjectionY:x1" ) )
-				b1 = ((TH2*)h)->GetXaxis()->FindBin( config.getDouble( hpath + ".ProjectionY:x1", 0 ) );
+			if ( config.exists( p + ":x1" ) )
+				b1 = ((TH2*)h)->GetXaxis()->FindBin( config.getDouble( p + ":x1", 0 ) );
 
-			int b2 = config.getInt( hpath + ".ProjectionY:b2", -1 );
-			if ( config.exists( hpath + ".ProjectionY:x2" ) )
-				b2 = ((TH2*)h)->GetXaxis()->FindBin( config.getDouble( hpath + ".ProjectionY:x2", -1 ) );
+			int b2 = config.getInt( p + ":b2", -1 );
+			if ( config.exists( p + ":x2" ) )
+				b2 = ((TH2*)h)->GetXaxis()->FindBin( config.getDouble( p + ":x2", -1 ) );
+
+			INFOC( "ProjectionY [" << npy << "] b1=" << b1 << ", b2="<<b2 );
+
+			npy = config.getXString( p + ":name", npy );
 
 			TH1 * hOther = ((TH2*)h)->ProjectionY( npy.c_str(), b1, b2 );
 			h = hOther;
@@ -235,16 +270,25 @@ map<string, TH1*> VegaXmlPlotter::makeHistograms( string _path ){
 		}
 
 		if ( config.exists( hpath + ".ProjectionX" ) ){
+			string p = hpath + ".ProjectionX";
 			string npx = data + "/" + name + "_px";
 
-			int b1 = config.getInt( hpath + ".ProjectionX:b1", 0 );
-			if ( config.exists( hpath + ".ProjectionX:y1" ) )
-				b1 = ((TH2*)h)->GetYaxis()->FindBin( config.getDouble( hpath + ".ProjectionX:y2", -1 ) );
+			int b1 = config.getInt( p + ":b1", 0 );
+			if ( config.exists( p + ":y1" ) ){
+				double y1 = config.getDouble( p + ":y1", -1 );
+				INFOC( "ProjectionX y1=" << y1 );
+				b1 = ((TH2*)h)->GetYaxis()->FindBin( y1 );
+			}
 			
-			int b2 = config.getInt( hpath + ".ProjectionX:b2", -1 );
-			if ( config.exists( hpath + ".ProjectionX:y2" ) )
-				b2 = ((TH2*)h)->GetYaxis()->FindBin( config.getDouble( hpath + ".ProjectionX:y2", -1 ) );
+			int b2 = config.getInt( p + ":b2", -1 );
+			if ( config.exists( p + ":y2" ) ){
+				double y2 = config.getDouble( p + ":y2", -1 );
+				INFOC( "ProjectionX y2=" << y2 );
+				b2 = ((TH2*)h)->GetYaxis()->FindBin( y2 );
+			}
+			INFOC( "ProjectionX [" << npx << "] b1=" << b1 << ", b2="<<b2 );
 
+			npx = config.getXString( p + ":name", npx );
 
 			TH1 * hOther = ((TH2*)h)->ProjectionX( npx.c_str(), b1, b2 );
 			h = hOther;
@@ -257,6 +301,14 @@ map<string, TH1*> VegaXmlPlotter::makeHistograms( string _path ){
 				h->Scale( 1.0 / h->Integral() );
 		}
 
+
+		// MUST BE LAST!
+		if ( config.exists( hpath + ".Save" ) && config.exists( hpath + ".Save:name" ) ){
+			string san = config.getXString( hpath + ".Save:name" );
+			if ( 0 == globalHistos.count( san ) )
+				globalHistos[ san ] = (TH1*)h->Clone( san.c_str() );
+			else { ERRORC( "Cannot save as " << quote( san ) << " duplicate exists" ); }
+		}
 
 		// offCan->cd();
 		// // rpl.style( h ).draw();
