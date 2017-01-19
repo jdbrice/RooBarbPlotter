@@ -11,7 +11,10 @@ void VegaXmlPlotter::make() {
 	loadData();
 	makeOutputFile();
 
-	Logger::setGlobalLogLevel( "debug" );
+	string ll = config.getString( "Logger:globalLogLevel", "debug" );
+	INFOC( "Setting ll to " << quote(ll) );
+	Logger::setGlobalLogLevel( ll );
+	makeTransforms();
 	makePlots();
 	makePlotTemplates();
 
@@ -87,7 +90,6 @@ void VegaXmlPlotter::makePlotTemplates(){
 			makePlot( path );
 			iPlot++;
 		}
-		
 	}
 }
 
@@ -135,10 +137,10 @@ void VegaXmlPlotter::makeMargins( string _path ){
 		gPad->SetLeftMargin( config.getDouble( _path + ".Margins:left" ) );
 }
 
-TH1* VegaXmlPlotter::findHistogram( string _path, int iHist ){
+TH1* VegaXmlPlotter::findHistogram( string _path, int iHist, string _mod ){
 
-	string data = config.getXString( _path + ":data" );
-	string name = config.getXString( _path + ":name" );
+	string data = config.getXString( _path + ":data" + _mod, config.getXString( _path + ":data" ) );
+	string name = config.getXString( _path + ":name" + _mod, config.getXString( _path + ":name" + _mod ) );
 	INFO( classname(), "Looking for [" << name << "] in " << data << "=(" << dataFiles[data] <<")" );
 	// first check for a normal histogram from a root file
 	if ( dataFiles.count( data ) > 0 && dataFiles[ data ] ){
@@ -165,7 +167,7 @@ TH1* VegaXmlPlotter::findHistogram( string _path, int iHist ){
 }
 
 map<string, TH1*> VegaXmlPlotter::makeHistograms( string _path ){
-	Logger::setGlobalLogLevel( "debug" );
+	// Logger::setGlobalLogLevel( "debug" );
 
 	TCanvas * c = makeCanvas( _path ); 
 	c->cd();
@@ -450,7 +452,7 @@ TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
 	string data = config.getXString( _path + ":data" );
 	TChain * chain = dataChains[ data ];
 	string title = config.getXString( _path + ":title" );
-	string hName = config.getXString( _path + ":name" ) +"_" + ts( iHist );
+	string hName = config.getXString( _path + ":name" );// +"_" + ts( iHist );
 	string drawCmd = config.getXString( _path + ":draw" ) + " >> " + hName;
 	string selectCmd = config.getXString( _path + ":select" );
 	
@@ -513,4 +515,221 @@ TCanvas* VegaXmlPlotter::makeCanvas( string _path ){
 		c = new TCanvas( "c" );
 
 	return c;
+}
+
+
+void VegaXmlPlotter::makeTransforms(  ){
+	vector<string> tform_paths = config.childrenOf( nodePath, "Transform" );
+	INFOC( "Found " << tform_paths.size() << plural( tform_paths.size(), " Transform set", " Transform sets" ) );
+	
+	for ( string path : tform_paths ){
+		vector<string> states = config.getStringVector( path + ":states" );
+		int i = 0;
+		if( states.size() == 0 ) states.push_back( "" );
+
+		for ( string state : states ){
+			// set the global vars for this template
+			config.set( "state", state );
+			config.set( "i", ts(i) );
+
+			makeTransform( path );
+			i++;
+		}
+	}
+}
+
+void VegaXmlPlotter::makeTransform( string tpath ){
+	vector<string> tform_paths = config.childrenOf( tpath );
+	INFOC( "Found " << tform_paths.size() << plural( tform_paths.size(), " Transform", " Transforms" ) );
+
+	// TODO function map from string to transform??
+	for ( string tform : tform_paths ){
+		string tn = config.tagName( tform );
+		INFOC( tn );
+
+		if ( "ProjectionX" == tn )
+			makeProjectionX( tform );
+		if ( "ProjectionY" == tn )
+			makeProjectionY( tform );
+		if ( "Add" == tn )
+			makeAdd( tform );
+		if ( "Divide" == tn )
+			makeDivide( tform );
+		
+
+	}
+}
+
+
+void VegaXmlPlotter::makeProjectionX( string _path){
+	if ( !config.exists( _path + ":save_as" ) ){
+		ERRORC( "Must provide " << quote( "save_as" ) << " attribute to save transformation" );
+		return;
+	}
+
+	string d = config.getXString( _path + ":data" );
+	string n = config.getXString( _path + ":name" );
+	string nn = config.getXString( _path + ":save_as" );
+	
+	TH1 * h = findHistogram( _path, 0 );
+	if ( nullptr == h ) {
+		ERRORC( "Could not find histogram " << quote( d + "/" + n ) );
+		return;
+	}
+
+	int b1 = config.getInt( _path + ":b1", 0 );
+	if ( config.exists( _path + ":y1" ) ){
+		double y1 = config.getDouble( _path + ":y1", -1 );
+		INFOC( "ProjectionX y1=" << y1 );
+		b1 = ((TH2*)h)->GetYaxis()->FindBin( y1 );
+	}
+	
+	int b2 = config.getInt( _path + ":b2", -1 );
+	if ( config.exists( _path + ":y2" ) ){
+		double y2 = config.getDouble( _path + ":y2", -1 );
+		INFOC( "ProjectionX y2=" << y2 );
+		b2 = ((TH2*)h)->GetYaxis()->FindBin( y2 );
+	}
+	INFOC( "ProjectionX [" << nn << "] b1=" << b1 << ", b2="<<b2 );
+
+	TH1 * hOther = ((TH2*)h)->ProjectionX( nn.c_str(), b1, b2 );
+	h = hOther;
+
+	globalHistos[ nn ] = h;
+}
+
+void VegaXmlPlotter::makeProjectionY( string _path){
+	if ( !config.exists( _path + ":save_as" ) ){
+		ERRORC( "Must provide " << quote( "save_as" ) << " attribute to save transformation" );
+		return;
+	}
+
+	string d = config.getXString( _path + ":data" );
+	string n = config.getXString( _path + ":name" );
+	TH1 * h = findHistogram( _path, 0 );
+	if ( nullptr == h ) {
+		ERRORC( "Could not find histogram " << quote( d + "/" + n ) );
+		return;
+	}
+	string nn = config.getXString( _path + ":save_as" );
+
+	int b1 = config.getInt( _path + ":b1", 0 );
+	if ( config.exists( _path + ":x1" ) ){
+		double x1 = config.getDouble( _path + ":x1", -1 );
+		INFOC( "ProjectionY x1=" << x1 );
+		b1 = ((TH2*)h)->GetYaxis()->FindBin( x1 );
+	}
+	
+	int b2 = config.getInt( _path + ":b2", -1 );
+	if ( config.exists( _path + ":x2" ) ){
+		double x2 = config.getDouble( _path + ":x2", -1 );
+		INFOC( "ProjectionY x2=" << x2 );
+		b2 = ((TH2*)h)->GetYaxis()->FindBin( x2 );
+	}
+	INFOC( "ProjectionX [" << nn << "] b1=" << b1 << ", b2="<<b2 );
+
+	TH1 * hOther = ((TH2*)h)->ProjectionY( nn.c_str(), b1, b2 );
+	h = hOther;
+
+	globalHistos[ nn ] = h;
+
+}
+void VegaXmlPlotter::makeAdd( string _path){
+	if ( !config.exists( _path + ":save_as" ) ){
+		ERRORC( "Must provide " << quote( "save_as" ) << " attribute to save transformation" );
+		return;
+	}
+
+	string d = config.getXString( _path + ":data" );
+	string n = config.getXString( _path + ":name" );
+	string nn = config.getXString( _path + ":save_as" );
+	double mod = config.getDouble( _path + ":mod", 1.0 );
+
+	TH1 * hA = findHistogram( _path, 0, "A" );
+	TH1 * hB = findHistogram( _path, 0, "B" );
+	if ( nullptr == hA || nullptr == hB ) {
+		ERRORC( "Could not find histogram" );
+		return;
+	}
+
+	TH1 * hSum = (TH1*) hA->Clone( nn.c_str() );
+	hSum->Add( hB, mod );
+	globalHistos[nn] = hSum;
+
+}
+void VegaXmlPlotter::makeDivide( string _path){
+	if ( !config.exists( _path + ":save_as" ) ){
+		ERRORC( "Must provide " << quote( "save_as" ) << " attribute to save transformation" );
+		return;
+	}
+
+	string d = config.getXString( _path + ":data" );
+	string n = config.getXString( _path + ":name" );
+	string nn = config.getXString( _path + ":save_as" );
+
+	TH1 * hNum = findHistogram( _path, 0, "A" );
+	TH1 * hDen = findHistogram( _path, 0, "B" );
+	if ( nullptr == hNum || nullptr == hDen ) {
+		ERRORC( "Could not find histogram" );
+		return;
+	}
+
+	TH1 * hOther = (TH1*) hNum->Clone( nn.c_str() );
+	hOther->Divide( hDen );
+	globalHistos[nn] = hOther;
+}
+
+void VegaXmlPlotter::makeRebin( string _path ){
+	// rebins to array of bin edges
+	if ( !config.exists( _path + ":save_as" ) ){
+		ERRORC( "Must provide " << quote( "save_as" ) << " attribute to save transformation" );
+		return;
+	}
+
+	string d = config.getXString( _path + ":data" );
+	string n = config.getXString( _path + ":name" );
+	TH1 * h = findHistogram( _path, 0 );
+	if ( nullptr == h ) {
+		ERRORC( "Could not find histogram " << quote( d + "/" + n ) );
+		return;
+	}
+	string nn = config.getXString( _path + ":save_as" );
+	TH1 * hOther = nullptr;((TH1*)h)->Clone( nn.c_str() );
+
+	HistoBins bx;
+	if ( config.exists( _path +":bins_x" )  ){
+		if ( config.exists( config.getXString( _path+":bins_x" ) ) ){
+			bx.load( config, config.getXString( _path+":bins_x" ) );
+		} else {
+			bx.load( config, _path + ":bins_x" );
+		}
+	}
+	if ( bx.nBins() > 0 ){
+		hOther = h->Rebin( bx.nBins(), nn.c_str(), bx.bins.data() );
+		h = hOther;
+		globalHistos[nn] = hOther;
+	} else {
+		ERRORC( "Cannot Rebin, check error message" );
+	}
+
+
+
+	// TODO add 2D;
+	// HistoBins by;
+	// if ( config.exists( _path +":bins_y" )  ){
+	// 	if ( config.exists( config.getXString( _path+":bins_y" ) ) ){
+	// 		by.load( config, config.getXString( _path+":bins_y" ) );
+	// 	} else {
+	// 		by.load( confing, _path + ":bins_y" );
+	// 	}
+	// }
+	// if ( by.nBins() > 0 ){
+	// 	hOther = h->RebinY( by.nBins(), nn.c_str(), by.bins.data() );
+	// 	h = hOther;
+	// }
+
+
+
+
+
 }
