@@ -555,6 +555,8 @@ void VegaXmlPlotter::makeTransform( string tpath ){
 			makeAdd( tform );
 		if ( "Divide" == tn )
 			makeDivide( tform );
+		if ( "Rebin" == tn )
+			makeRebin( tform );
 		
 
 	}
@@ -679,6 +681,9 @@ void VegaXmlPlotter::makeDivide( string _path){
 	globalHistos[nn] = hOther;
 }
 
+
+
+
 void VegaXmlPlotter::makeRebin( string _path ){
 	// rebins to array of bin edges
 	if ( !config.exists( _path + ":save_as" ) ){
@@ -696,7 +701,7 @@ void VegaXmlPlotter::makeRebin( string _path ){
 	string nn = config.getXString( _path + ":save_as" );
 	TH1 * hOther = nullptr;((TH1*)h)->Clone( nn.c_str() );
 
-	HistoBins bx;
+	HistoBins bx, by;
 	if ( config.exists( _path +":bins_x" )  ){
 		if ( config.exists( config.getXString( _path+":bins_x" ) ) ){
 			bx.load( config, config.getXString( _path+":bins_x" ) );
@@ -704,14 +709,37 @@ void VegaXmlPlotter::makeRebin( string _path ){
 			bx.load( config, _path + ":bins_x" );
 		}
 	}
-	if ( bx.nBins() > 0 ){
-		hOther = h->Rebin( bx.nBins(), nn.c_str(), bx.bins.data() );
-		h = hOther;
-		globalHistos[nn] = hOther;
-	} else {
-		ERRORC( "Cannot Rebin, check error message" );
+	if ( config.exists( _path +":bins_y" )  ){
+		if ( config.exists( config.getXString( _path+":bins_y" ) ) ){
+			by.load( config, config.getXString( _path+":bins_y" ) );
+		} else {
+			by.load( config, _path + ":bins_y" );
+		}
 	}
 
+	int nDim = 0;
+	if ( bx.nBins() > 0 ) nDim++;
+	if ( by.nBins() > 0 ) nDim++;
+
+
+	if ( nDim == 1 && bx.nBins() > 0 ){
+		hOther = h->Rebin( bx.nBins(), nn.c_str(), bx.bins.data() );
+		globalHistos[nn] = hOther;
+	} else if ( nDim == 1 ){
+		ERRORC( "Cannot Rebin, check error message for x bins" );
+	}
+
+	if ( nDim == 2 && bx.nBins() > 0 && by.nBins() > 0 && nullptr != dynamic_cast<TH2*>( h ) ){
+		hOther = new TH2D( nn.c_str(), h->GetTitle(), bx.nBins(), bx.bins.data(), by.nBins(), by.bins.data() );
+		HistoBins::rebin2D( dynamic_cast<TH2*>(h), dynamic_cast<TH2*>(hOther) );
+		globalHistos[nn] = hOther;
+	} else if ( nDim == 2 ){
+		if ( nullptr == dynamic_cast<TH2*>( h ) ){
+			ERRORC( "Input histogram is not 2D" );
+		} else {
+			ERRORC( "Cannot Rebin, check error for binsx and y" );
+		}
+	}
 
 
 	// TODO add 2D;
