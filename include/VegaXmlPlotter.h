@@ -48,18 +48,23 @@ public:
 	virtual void makePlot( string _path );
 	virtual void makePlotTemplates();
 	virtual void makeMargins( string _path );
+	
+	virtual TH1* findHistogram( string _data, string _name );
 	virtual TH1* findHistogram( string _path, int iHist, string _mod="" );
 	virtual map<string, TH1*> makeHistograms( string _path );
 	virtual void makeLegend( string _path, map<string, TH1*> &histos );
 	virtual void makeLatex( string _path );
 	virtual void makeLine( string _path );
 	virtual void makeExports( string _path );
+	// virtual void makeHistoStack( map<string, TH1*> histos );
+
 
 	// Transforms
 	virtual void makeTransforms();
 	virtual void makeTransform( string _tpath );
 	virtual void makeProjectionX( string _path);
 	virtual void makeProjectionY( string _path);
+	virtual void makeMultiAdd( string _path);
 	virtual void makeAdd( string _path);
 	virtual void makeDivide( string _path);
 	virtual void makeRebin( string _path);

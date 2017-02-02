@@ -2,6 +2,7 @@
 #include "ChainLoader.h"
 
 #include "TLatex.h"
+#include "THStack.h"
 
 void VegaXmlPlotter::initialize(){
 }
@@ -99,6 +100,7 @@ void VegaXmlPlotter::makePlot( string _path ){
 	}
 
 	map<string, TH1*> histos = makeHistograms( _path );
+	// makeHistoStack( histos );
 	makeLatex(""); // global first
 	makeLatex(_path);
 	makeLine( _path );
@@ -114,6 +116,16 @@ void VegaXmlPlotter::makePlots(){
 		makePlot( path );
 	}
 }
+
+// void VegaXmlPlotter::makeHistoStack( map<string, TH1*> histos ){
+// 	THStack *hs = new THStack( "hs", "" );
+// 	for ( auto kv : histos ){
+// 		hs->Add( kv.second );
+// 	}
+// 	RooPlotLib rpl;
+// 	rpl.style( hs )
+
+// }
 
 void VegaXmlPlotter::makeMargins( string _path ){
 	
@@ -135,6 +147,30 @@ void VegaXmlPlotter::makeMargins( string _path ){
 		gPad->SetBottomMargin( config.getDouble( _path + ".Margins:bottom" ) );
 	if ( config.exists( _path + ".Margins:left" ) )
 		gPad->SetLeftMargin( config.getDouble( _path + ".Margins:left" ) );
+}
+
+
+TH1 *VegaXmlPlotter::findHistogram( string _data, string _name ){
+
+	// TODO: add support for splitting name inot data and name by "/"
+	TString name(_name.c_str());
+
+	string tdata = _data;
+	if ( "" == _data && dataFiles.size() >= 1 ) tdata = dataFiles.begin()->first;
+	if ( dataFiles.count( tdata ) > 0 && dataFiles[ tdata ] ){
+		if ( nullptr == dataFiles[ tdata ]->Get( _name.c_str() ) ) return nullptr;
+		TH1 * h = (TH1*)dataFiles[ tdata ]->Get( _name.c_str() );
+		INFO( classname(), "Found Histogram [" << _name << "]= " << h << " in data file " << tdata );
+		return h;
+	}
+
+	// finally look for histos we made and named in the ttree drawing
+	if ( globalHistos.count( _name ) > 0 && globalHistos[ _name ] ){
+		INFOC( "Found histogram in mem pool" );
+		return globalHistos[ _name ];
+	}
+
+	return nullptr;
 }
 
 TH1* VegaXmlPlotter::findHistogram( string _path, int iHist, string _mod ){
@@ -636,12 +672,57 @@ void VegaXmlPlotter::makeProjectionY( string _path){
 	globalHistos[ nn ] = h;
 
 }
+
+void VegaXmlPlotter::makeMultiAdd( string _path ){
+	if ( !config.exists( _path + ":save_as" ) ){
+		ERRORC( "Must provide " << quote( "save_as" ) << " attribute to save transformation" );
+		return;
+	}
+
+
+	string d = config.getXString( _path + ":data" );
+	vector<string> n = config.getStringVector( _path + ":name" );
+	if ( n.size() < 1 ) {
+		ERRORC( "No names given" );
+	}
+
+	string nn = config.getXString( _path + ":save_as" );
+
+	// TODO allow modifier for each
+	double mod = config.getDouble( _path + ":mod", 1.0 );
+
+	TH1 * hFirst = findHistogram( d, n[0] );
+	if ( nullptr == hFirst ){
+		ERRORC( "Hit Null Histo " << n[0] );
+		return;
+	}
+	TH1 * hSum = (TH1*)hFirst->Clone( nn.c_str() );
+
+	for ( int i = 1; i < n.size(); i++ ){
+		TH1 * h = findHistogram( d, n[i] );
+		if ( nullptr == h ) {
+			WARNC( "Hit Null Histo : " << n[i] << " SKIPPING" );
+			continue;
+		}
+		hSum ->Add( h );
+	}
+
+	globalHistos[nn] = hSum;
+
+
+
+}
+
 void VegaXmlPlotter::makeAdd( string _path){
 	if ( !config.exists( _path + ":save_as" ) ){
 		ERRORC( "Must provide " << quote( "save_as" ) << " attribute to save transformation" );
 		return;
 	}
 
+	if ( config.exists( _path+":name" ) && config.getStringVector( _path+":name" ).size() > 1 ){
+		makeMultiAdd( _path );
+		return;
+	}
 	string d = config.getXString( _path + ":data" );
 	string n = config.getXString( _path + ":name" );
 	string nn = config.getXString( _path + ":save_as" );
@@ -657,7 +738,6 @@ void VegaXmlPlotter::makeAdd( string _path){
 	TH1 * hSum = (TH1*) hA->Clone( nn.c_str() );
 	hSum->Add( hB, mod );
 	globalHistos[nn] = hSum;
-
 }
 void VegaXmlPlotter::makeDivide( string _path){
 	if ( !config.exists( _path + ":save_as" ) ){
@@ -755,9 +835,4 @@ void VegaXmlPlotter::makeRebin( string _path ){
 	// 	hOther = h->RebinY( by.nBins(), nn.c_str(), by.bins.data() );
 	// 	h = hOther;
 	// }
-
-
-
-
-
 }
