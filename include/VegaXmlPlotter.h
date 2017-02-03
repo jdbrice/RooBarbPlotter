@@ -68,6 +68,7 @@ public:
 	virtual void makeAdd( string _path);
 	virtual void makeDivide( string _path);
 	virtual void makeRebin( string _path);
+	virtual void makeScale( string _path);
 
 
 	virtual TH1* makeHistoFromDataTree( string _path, int iHist );
@@ -75,6 +76,13 @@ public:
 	virtual void positionOptStats( string _path, TPaveStats * st );
 
 	virtual TCanvas* makeCanvas( string _path );
+
+	int color( string _color ){
+		if ( _color[0] == '#' && _color.size() == 7 ){
+			return TColor::GetColor( _color.c_str() );
+		}
+		return atoi( _color.c_str() );
+	}
 	
 };
 

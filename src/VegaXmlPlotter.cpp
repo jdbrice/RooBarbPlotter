@@ -124,7 +124,6 @@ void VegaXmlPlotter::makePlots(){
 // 	}
 // 	RooPlotLib rpl;
 // 	rpl.style( hs )
-
 // }
 
 void VegaXmlPlotter::makeMargins( string _path ){
@@ -234,7 +233,7 @@ map<string, TH1*> VegaXmlPlotter::makeHistograms( string _path ){
 
 		// if ( nullptr == h && (histos.count(name) <= 0 || nullptr == histos[name] ) ) continue;
 		
-		if ( nullptr == h ) h = histos[name];
+		if ( nullptr == h ) continue;
 
 		// These maight not be unique for multiple datasets so use at your own risk
 		histos[ name ] = h;
@@ -354,6 +353,7 @@ map<string, TH1*> VegaXmlPlotter::makeHistograms( string _path ){
 		if ( !init ){
 			init = true;
 			h->Draw();
+			INFOC( "Forcing Draw with no opts" );
 			// INFO( classname(), config.getXString( hpath + ".style:title" ) );
 			// h->SetTitle( config.getXString( hpath + ".style:title" ).c_str() );
 		} else {
@@ -393,6 +393,26 @@ void VegaXmlPlotter::makeLegend( string _path, map<string, TH1*> &histos ){
 			config.getDouble( _path + ".Legend.Position:y1", 0.7 ),
 			config.getDouble( _path + ".Legend.Position:x2", 0.5 ),
 			config.getDouble( _path + ".Legend.Position:y2", 0.9 ) );
+		string spos = config.getXString( _path + ".Legend.Position:pos" );
+		if ( spos == "top right" || spos == "topright" ){
+			float w = config.getFloat( _path + ".Legend.Position:w", 0.4 );
+			float h = config.getFloat( _path + ".Legend.Position:h", 0.2 );
+
+			float x2 = 0.9;
+			float y2 = 0.9;
+			if ( nullptr != gPad) x2 = 1.0 - gPad->GetRightMargin();
+			if ( nullptr != gPad) y2 = 1.0 - gPad->GetTopMargin();
+
+			float x1 = x2 - w;
+			float y1 = y2 - h;
+
+			leg->SetX1NDC( x1 );
+			leg->SetX2NDC( x2 );
+
+			leg->SetY1NDC( y1 );
+			leg->SetY2NDC( y2 );
+		}
+
 
 		if ( config.exists(  _path + ".Legend:title" ) ) {
 			leg->SetHeader( config.getXString( _path + ".Legend:title" ).c_str() );
@@ -424,6 +444,17 @@ void VegaXmlPlotter::makeLegend( string _path, map<string, TH1*> &histos ){
 			}
 		}
 
+		if ( config.exists( _path + ".Legend:border_size" ) ){
+			leg->SetBorderSize( config.getDouble( _path + ".Legend:border_size" ) );
+		}
+		if ( config.exists( _path + ".Legend:fill_color" ) ){
+			leg->SetFillColor( color( config.getString( _path + ".Legend:fill_color" ) ) );
+		}
+		if ( config.exists( _path + ".Legend:fill_style" ) ){
+			INFOC( "FillStyle=" << config.getInt( _path + ".Legend:fill_style" ) );
+			leg->SetFillStyle( config.getInt( _path + ".Legend:fill_style" ) );
+		}
+
 		leg->Draw( );
 
 	}
@@ -441,6 +472,18 @@ void VegaXmlPlotter::makeLatex( string _path ){
 		
 		INFO( classname(), "Latex @ " << ltpath );
 		latex.SetTextSize( config.getFloat( ltpath + ":size", 0.05 ) );
+
+		if ( config.exists( ltpath +":color" ) ){
+			string cs = config.getXString( ltpath + ":color" );
+			// int color = config.getInt( ltpath + ":color" );
+			// if ( cs[0] == '#' && cs.size() == 7 ){
+			// 	color = TColor::GetColor( cs.c_str() );
+			// }
+			latex.SetTextColor( color( cs ) );
+		} else {
+			latex.SetTextColor( kBlack );
+		}
+		
 
 		TLatex * TL = latex.DrawLatexNDC( config.getFloat( ltpath + ":x" ), 
 							config.getFloat( ltpath + ":y" ), 
@@ -550,6 +593,9 @@ TCanvas* VegaXmlPlotter::makeCanvas( string _path ){
 	else 
 		c = new TCanvas( "c" );
 
+	c->SetFillColor(0); 
+	c->SetFillStyle(4000);
+
 	return c;
 }
 
@@ -593,6 +639,8 @@ void VegaXmlPlotter::makeTransform( string tpath ){
 			makeDivide( tform );
 		if ( "Rebin" == tn )
 			makeRebin( tform );
+		if ( "Scale" == tn )
+			makeScale( tform );
 		
 
 	}
@@ -708,9 +756,6 @@ void VegaXmlPlotter::makeMultiAdd( string _path ){
 	}
 
 	globalHistos[nn] = hSum;
-
-
-
 }
 
 void VegaXmlPlotter::makeAdd( string _path){
@@ -760,9 +805,6 @@ void VegaXmlPlotter::makeDivide( string _path){
 	hOther->Divide( hDen );
 	globalHistos[nn] = hOther;
 }
-
-
-
 
 void VegaXmlPlotter::makeRebin( string _path ){
 	// rebins to array of bin edges
@@ -835,4 +877,28 @@ void VegaXmlPlotter::makeRebin( string _path ){
 	// 	hOther = h->RebinY( by.nBins(), nn.c_str(), by.bins.data() );
 	// 	h = hOther;
 	// }
+}
+
+void VegaXmlPlotter::makeScale( string _path ){
+
+	if ( !config.exists( _path + ":save_as" ) ){
+		ERRORC( "Must provide " << quote( "save_as" ) << " attribute to save transformation" );
+		return;
+	}
+
+	string d = config.getXString( _path + ":data" );
+	string n = config.getXString( _path + ":name" );
+	TH1 * h = findHistogram( _path, 0 );
+	if ( nullptr == h ) {
+		ERRORC( "Could not find histogram " << quote( d + "/" + n ) );
+		return;
+	}
+	string nn = config.getXString( _path + ":save_as" );
+	TH1 * hOther = (TH1*)h->Clone( nn.c_str() );
+
+	double factor = config.getDouble( _path + ":factor", 1.0 );
+	string opt    = config.getXString( _path +":opt", "" );
+
+	hOther->Scale( factor, opt.c_str() );
+	globalHistos[nn] = hOther;
 }
