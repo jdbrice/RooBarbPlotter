@@ -1,10 +1,13 @@
 #include "VegaXmlPlotter.h"
 #include "ChainLoader.h"
+#include "XmlCanvas.h"
 
 #include "TLatex.h"
 #include "THStack.h"
 
+
 void VegaXmlPlotter::initialize(){
+
 }
 
 void VegaXmlPlotter::make() {
@@ -18,6 +21,7 @@ void VegaXmlPlotter::make() {
 	makeTransforms();
 	makePlots();
 	makePlotTemplates();
+	makeCanvases();
 
 	if ( dataOut ){
 		dataOut->Write();
@@ -94,11 +98,12 @@ void VegaXmlPlotter::makePlotTemplates(){
 	}
 }
 
-void VegaXmlPlotter::makePlot( string _path ){
+void VegaXmlPlotter::makePlot( string _path, TPad * _pad ){
 	if ( config.exists( _path + ".Palette" ) ){
 		gStyle->SetPalette( config.getInt( _path + ".Palette" ) );
 	}
 
+	makeAxes( _path + ".Axes" );
 	map<string, TH1*> histos = makeHistograms( _path );
 	// makeHistoStack( histos );
 	makeLatex(""); // global first
@@ -106,14 +111,25 @@ void VegaXmlPlotter::makePlot( string _path ){
 	makeLine( _path );
 	makeLegend( _path, histos );
 
-	makeExports( _path );
+	makeExports( _path, _pad );
 }
 
 void VegaXmlPlotter::makePlots(){
 	vector<string> plot_paths = config.childrenOf( nodePath, "Plot" );
 	INFO( classname(), "Found " << plot_paths.size() << plural( plot_paths.size(), " Plot", " Plots" ) );
 	for ( string path : plot_paths ){
+		TCanvas * c = makeCanvas( path ); 
+		c->cd();
+		makeMargins( path );
 		makePlot( path );
+	}
+}
+
+void VegaXmlPlotter::makeCanvases(){
+	vector<string> c_paths = config.childrenOf( nodePath, "Canvas" );
+	INFO( classname(), "Found " << c_paths.size() << plural( c_paths.size(), " Canvas", " Canvases" ) );
+	for ( string path : c_paths ){
+		drawCanvas( path );
 	}
 }
 
@@ -152,7 +168,11 @@ void VegaXmlPlotter::makeMargins( string _path ){
 TH1 *VegaXmlPlotter::findHistogram( string _data, string _name ){
 
 	// TODO: add support for splitting name inot data and name by "/"
-	TString name(_name.c_str());
+	
+	if ( "" == _data && _name.find( "/" ) != string::npos ){
+		_data = dataOnly( _name );
+		_name = nameOnly( _name );
+	}
 
 	string tdata = _data;
 	if ( "" == _data && dataFiles.size() >= 1 ) tdata = dataFiles.begin()->first;
@@ -176,6 +196,13 @@ TH1* VegaXmlPlotter::findHistogram( string _path, int iHist, string _mod ){
 
 	string data = config.getXString( _path + ":data" + _mod, config.getXString( _path + ":data" ) );
 	string name = config.getXString( _path + ":name" + _mod, config.getXString( _path + ":name" + _mod ) );
+
+	if ( "" == data && name.find( "/" ) != string::npos ){
+		data = dataOnly( name );
+		INFOC( "data from name " << quote( data ) );
+		name = nameOnly( name );
+	}
+
 	INFO( classname(), "Looking for [" << name << "] in " << data << "=(" << dataFiles[data] <<")" );
 	// first check for a normal histogram from a root file
 	if ( dataFiles.count( data ) > 0 && dataFiles[ data ] ){
@@ -201,192 +228,298 @@ TH1* VegaXmlPlotter::findHistogram( string _path, int iHist, string _mod ){
 	return nullptr;
 }
 
-map<string, TH1*> VegaXmlPlotter::makeHistograms( string _path ){
-	// Logger::setGlobalLogLevel( "debug" );
 
-	TCanvas * c = makeCanvas( _path ); 
-	c->cd();
-	makeMargins( _path );
+TH1* VegaXmlPlotter::makeAxes( string _path ){
+	
+	if ( !config.exists( _path ) ) return nullptr;
+
 	RooPlotLib rpl;
+	HistoBins x( config, _path );
+	HistoBins y( config, _path );
 
+	// also check for linspaces on x, y
+	INFOC( "Checking @" << _path + ":x" << " :: " << config.oneOf( _path + ":x", _path + ":lsx" ) );
+	x.linspace( config, config.oneOf( _path + ":x", _path + ":lsx" ) );
+	x.arange( config, config.oneOf( _path + ":xrange", _path + ":xr" ) );
+
+	y.linspace( config, config.oneOf( _path + ":y", _path + ":lsy" ) );
+	y.arange( config, config.oneOf( _path + ":yrange", _path + ":yr" ) );
+
+	INFOC( "X : " << x.toString() << "\n\n\n" );
+	INFOC( "Y : " << y.toString() );
+
+	if ( x.nBins() <= 0 ) {
+		ERRORC( "Cannot make Axes, invalid x bins" );
+		return nullptr;
+	}
+
+	if ( y.nBins() <= 0 ) {
+		ERRORC( "Cannot make Axes, invalid y bins" );
+		return nullptr;
+	}
+
+	TH1 * frame = new TH1C( "frame", "", x.nBins(), x.bins.data() );
+
+	rpl.style( frame ).set( "yr", y.minimum(), y.maximum() );
+	rpl.set( config, _path ).set( config, _path + ":style" ).set( config, _path + ".style" );
+
+	frame->Draw();
+
+	return frame;
+}
+
+
+map<string, TH1*> VegaXmlPlotter::makeHistograms( string _path ){
 	map<string, TH1*> histos;
-
 	vector<string> hist_paths = config.childrenOf( _path, "Histo" );
-	sort( hist_paths.begin(), hist_paths.end() );
-	bool init = false;
-	int iHist = 0;
+
 	for ( string hpath : hist_paths ){
-		string name= config[ hpath + ":name" ];
-		INFO( classname(), "Found Histo [" << name << "]" );
 
-		// string data = config.getXString( hpath + ":data" );
-		// if ( dataFiles.count( data ) <= 0 || !dataFiles[ data ] ) continue;
-		
-		// TH1 * h = (TH1*)dataFiles[ data ]->Get( name.c_str() )->Clone( ("hist_" + ts(iHist)).c_str() );
-		TH1 *h = findHistogram( hpath, iHist );
-		INFO( classname(), "Got " << h );
-		
-
-		for (auto kv : histos ){
-			INFOC( "mem pool : " << kv.first );
-		}
-
-		// if ( nullptr == h && (histos.count(name) <= 0 || nullptr == histos[name] ) ) continue;
-		
-		if ( nullptr == h ) continue;
-
-		// These maight not be unique for multiple datasets so use at your own risk
-		histos[ name ] = h;
-		// always add the fqn -> data:name
-		string data = config.getXString( hpath + ":data" );
-		INFO( classname(), "[" << data + "/" + name << "] = " << h  );
-		histos[ data + "/" + name ] = h;
-
-		// transforms
-		if ( config.exists( hpath + ".Scale" ) && config.getDouble( hpath + ".Scale" ) ){
-			h->Scale( config.getDouble( hpath + ".Scale" ) );
-		}
-		
-		if ( config.exists( hpath + ".RebinX" ) && config.getDouble( hpath + ".RebinX" ) ){
-			h->RebinX( config.getDouble( hpath + ".RebinX" ) );
-		}
-		// if ( config.exists( hpath + ".RebinY" ) && config.getDouble( hpath + ".RebinY" ) ){
-		// 	h->RebinY( config.getDouble( hpath + ".RebinY" ) );
-		// }
-		if ( config.exists( hpath + ".Divide" ) ){
-			TH1 * hOther = findHistogram( hpath + ".Divide", iHist * 1000 );
-			if ( hOther ){
-				string new_name = config.getXString( hpath + ".Divide:save_as", name + "_div_" + hOther->GetName() );
-				INFOC( "Divide histograms and saving as " << quote( new_name ) );
-				TH1 * hDiv = (TH1*)h->Clone( new_name.c_str() );
-				hDiv->Divide( hOther );
-				histos[ new_name ] = hDiv;
-				if ( globalHistos.count( new_name ) == 0 )
-					globalHistos[ new_name ] = hDiv;
-				else { ERRORC( "Cannot save as " << quote( new_name ) << " duplicate exists" ); }
-
-				h = hDiv;
-			} else {
-				ERROR( classname(), "Cannot divide by nullptr" );
-			}
-		}
-
-		if ( config.exists( hpath + ".Add" ) ){
-			string p = hpath + ".Add";
-			double mod = config.getDouble( p + ":mod", 1.0 );
-			TH1 * hOther = findHistogram( p, iHist * 2000 );
-			if ( hOther ){
-				h->Add( hOther, mod );
-			} else {
-				ERRORC( "Cannot find histogram to add" );
-			}
-		}
-
-		if ( config.exists( hpath + ".ProjectionY" ) ){
-			string p = hpath + ".ProjectionY";
-			string npy = data + "/" + name + "_py";
-
-			int b1 = config.getInt( p + ":b1", 0 );
-					 
-			if ( config.exists( p + ":x1" ) )
-				b1 = ((TH2*)h)->GetXaxis()->FindBin( config.getDouble( p + ":x1", 0 ) );
-
-			int b2 = config.getInt( p + ":b2", -1 );
-			if ( config.exists( p + ":x2" ) )
-				b2 = ((TH2*)h)->GetXaxis()->FindBin( config.getDouble( p + ":x2", -1 ) );
-
-			INFOC( "ProjectionY [" << npy << "] b1=" << b1 << ", b2="<<b2 );
-
-			npy = config.getXString( p + ":name", npy );
-
-			TH1 * hOther = ((TH2*)h)->ProjectionY( npy.c_str(), b1, b2 );
-			h = hOther;
-
-			// add it to the record
-			histos[ npy ] = h;
-		}
-
-		if ( config.exists( hpath + ".ProjectionX" ) ){
-			string p = hpath + ".ProjectionX";
-			string npx = data + "/" + name + "_px";
-
-			int b1 = config.getInt( p + ":b1", 0 );
-			if ( config.exists( p + ":y1" ) ){
-				double y1 = config.getDouble( p + ":y1", -1 );
-				INFOC( "ProjectionX y1=" << y1 );
-				b1 = ((TH2*)h)->GetYaxis()->FindBin( y1 );
-			}
-			
-			int b2 = config.getInt( p + ":b2", -1 );
-			if ( config.exists( p + ":y2" ) ){
-				double y2 = config.getDouble( p + ":y2", -1 );
-				INFOC( "ProjectionX y2=" << y2 );
-				b2 = ((TH2*)h)->GetYaxis()->FindBin( y2 );
-			}
-			INFOC( "ProjectionX [" << npx << "] b1=" << b1 << ", b2="<<b2 );
-
-			npx = config.getXString( p + ":name", npx );
-
-			TH1 * hOther = ((TH2*)h)->ProjectionX( npx.c_str(), b1, b2 );
-			h = hOther;
-
-			histos[ npx ] = h;
-		}
-
-		if ( config.exists( hpath + ".Norm" ) && config.getBool( hpath + ".Norm", true ) ){
-			if ( nullptr != h && h->Integral() > 0 )
-				h->Scale( 1.0 / h->Integral() );
-		}
-
-
-		// MUST BE LAST!
-		if ( config.exists( hpath + ".Save" ) && config.exists( hpath + ".Save:name" ) ){
-			string san = config.getXString( hpath + ".Save:name" );
-			if ( 0 == globalHistos.count( san ) )
-				globalHistos[ san ] = (TH1*)h->Clone( san.c_str() );
-			else { ERRORC( "Cannot save as " << quote( san ) << " duplicate exists" ); }
-		}
-
-		// offCan->cd();
-		// // rpl.style( h ).draw();
-		
-		if ( !init ){
-			init = true;
-			h->Draw();
-			INFOC( "Forcing Draw with no opts" );
-			// INFO( classname(), config.getXString( hpath + ".style:title" ) );
-			// h->SetTitle( config.getXString( hpath + ".style:title" ).c_str() );
-		} else {
-			// h->Draw( "same" );
-		}
-		
-
-		string styleRef = config.getXString( hpath + ":style" );
-		INFO( classname(), "Style Ref : " << styleRef );
-		if ( config.exists( styleRef ) ){
-			rpl.style( h ).set( config, styleRef );
-		}
-
-		rpl.style( h ).set( config, hpath + ".style" ).draw();
-
-		TPaveStats *st = (TPaveStats*)h->FindObject("stats");
-		if ( nullptr != st  ){
-			INFO( classname(), "Found Stats" );
-			positionOptStats( hpath, st );
-			// st->SetX1NDC( 0.7 ); st->SetX2NDC( 0.975 );
-		}
-
-		INFO( classname(), "Drawing " << name );
-		iHist++;
+		string fqn = "";
+		TH1 * h = makeHistogram( hpath, fqn );
+		histos[ nameOnly(fqn) ] = h;
+		histos[ fqn ] = h;
+		INFOC( "[" << nameOnly(fqn) << "] = " << h );
+		INFOC( "[" << fqn << "] = " << h );
 	}
 
 	return histos;
+}
 
-} // makeHistograms
+
+
+// map<string, TH1*> VegaXmlPlotter::makeHistograms( string _path ){
+// 	// Logger::setGlobalLogLevel( "debug" );
+
+	
+// 	RooPlotLib rpl;
+
+// 	map<string, TH1*> histos;
+
+// 	vector<string> hist_paths = config.childrenOf( _path, "Histo" );
+// 	sort( hist_paths.begin(), hist_paths.end() );
+// 	bool init = false;
+// 	int iHist = 0;
+// 	for ( string hpath : hist_paths ){
+// 		string name= config[ hpath + ":name" ];
+// 		INFO( classname(), "Found Histo [" << name << "]" );
+
+// 		// string data = config.getXString( hpath + ":data" );
+// 		// if ( dataFiles.count( data ) <= 0 || !dataFiles[ data ] ) continue;
+		
+// 		// TH1 * h = (TH1*)dataFiles[ data ]->Get( name.c_str() )->Clone( ("hist_" + ts(iHist)).c_str() );
+// 		TH1 *h = findHistogram( hpath, iHist );
+// 		INFO( classname(), "Got " << h );
+		
+
+// 		for (auto kv : histos ){
+// 			INFOC( "mem pool : " << kv.first );
+// 		}
+
+// 		// if ( nullptr == h && (histos.count(name) <= 0 || nullptr == histos[name] ) ) continue;
+		
+// 		if ( nullptr == h ) continue;
+
+// 		// These maight not be unique for multiple datasets so use at your own risk
+// 		histos[ name ] = h;
+// 		// always add the fqn -> data:name
+// 		string data = config.getXString( hpath + ":data" );
+// 		INFO( classname(), "[" << data + "/" + name << "] = " << h  );
+// 		histos[ data + "/" + name ] = h;
+
+// 		// transforms
+// 		if ( config.exists( hpath + ".Scale" ) && config.getDouble( hpath + ".Scale" ) ){
+// 			h->Scale( config.getDouble( hpath + ".Scale" ) );
+// 		}
+		
+// 		if ( config.exists( hpath + ".RebinX" ) && config.getDouble( hpath + ".RebinX" ) ){
+// 			h->RebinX( config.getDouble( hpath + ".RebinX" ) );
+// 		}
+// 		// if ( config.exists( hpath + ".RebinY" ) && config.getDouble( hpath + ".RebinY" ) ){
+// 		// 	h->RebinY( config.getDouble( hpath + ".RebinY" ) );
+// 		// }
+// 		if ( config.exists( hpath + ".Divide" ) ){
+// 			TH1 * hOther = findHistogram( hpath + ".Divide", iHist * 1000 );
+// 			if ( hOther ){
+// 				string new_name = config.getXString( hpath + ".Divide:save_as", name + "_div_" + hOther->GetName() );
+// 				INFOC( "Divide histograms and saving as " << quote( new_name ) );
+// 				TH1 * hDiv = (TH1*)h->Clone( new_name.c_str() );
+// 				hDiv->Divide( hOther );
+// 				histos[ new_name ] = hDiv;
+// 				if ( globalHistos.count( new_name ) == 0 )
+// 					globalHistos[ new_name ] = hDiv;
+// 				else { ERRORC( "Cannot save as " << quote( new_name ) << " duplicate exists" ); }
+
+// 				h = hDiv;
+// 			} else {
+// 				ERROR( classname(), "Cannot divide by nullptr" );
+// 			}
+// 		}
+
+// 		if ( config.exists( hpath + ".Add" ) ){
+// 			string p = hpath + ".Add";
+// 			double mod = config.getDouble( p + ":mod", 1.0 );
+// 			TH1 * hOther = findHistogram( p, iHist * 2000 );
+// 			if ( hOther ){
+// 				h->Add( hOther, mod );
+// 			} else {
+// 				ERRORC( "Cannot find histogram to add" );
+// 			}
+// 		}
+
+// 		if ( config.exists( hpath + ".ProjectionY" ) ){
+// 			string p = hpath + ".ProjectionY";
+// 			string npy = data + "/" + name + "_py";
+
+// 			int b1 = config.getInt( p + ":b1", 0 );
+					 
+// 			if ( config.exists( p + ":x1" ) )
+// 				b1 = ((TH2*)h)->GetXaxis()->FindBin( config.getDouble( p + ":x1", 0 ) );
+
+// 			int b2 = config.getInt( p + ":b2", -1 );
+// 			if ( config.exists( p + ":x2" ) )
+// 				b2 = ((TH2*)h)->GetXaxis()->FindBin( config.getDouble( p + ":x2", -1 ) );
+
+// 			INFOC( "ProjectionY [" << npy << "] b1=" << b1 << ", b2="<<b2 );
+
+// 			npy = config.getXString( p + ":name", npy );
+
+// 			TH1 * hOther = ((TH2*)h)->ProjectionY( npy.c_str(), b1, b2 );
+// 			h = hOther;
+
+// 			// add it to the record
+// 			histos[ npy ] = h;
+// 		}
+
+// 		if ( config.exists( hpath + ".ProjectionX" ) ){
+// 			string p = hpath + ".ProjectionX";
+// 			string npx = data + "/" + name + "_px";
+
+// 			int b1 = config.getInt( p + ":b1", 0 );
+// 			if ( config.exists( p + ":y1" ) ){
+// 				double y1 = config.getDouble( p + ":y1", -1 );
+// 				INFOC( "ProjectionX y1=" << y1 );
+// 				b1 = ((TH2*)h)->GetYaxis()->FindBin( y1 );
+// 			}
+			
+// 			int b2 = config.getInt( p + ":b2", -1 );
+// 			if ( config.exists( p + ":y2" ) ){
+// 				double y2 = config.getDouble( p + ":y2", -1 );
+// 				INFOC( "ProjectionX y2=" << y2 );
+// 				b2 = ((TH2*)h)->GetYaxis()->FindBin( y2 );
+// 			}
+// 			INFOC( "ProjectionX [" << npx << "] b1=" << b1 << ", b2="<<b2 );
+
+// 			npx = config.getXString( p + ":name", npx );
+
+// 			TH1 * hOther = ((TH2*)h)->ProjectionX( npx.c_str(), b1, b2 );
+// 			h = hOther;
+
+// 			histos[ npx ] = h;
+// 		}
+
+// 		if ( config.exists( hpath + ".Norm" ) && config.getBool( hpath + ".Norm", true ) ){
+// 			if ( nullptr != h && h->Integral() > 0 )
+// 				h->Scale( 1.0 / h->Integral() );
+// 		}
+
+
+// 		// MUST BE LAST!
+// 		if ( config.exists( hpath + ".Save" ) && config.exists( hpath + ".Save:name" ) ){
+// 			string san = config.getXString( hpath + ".Save:name" );
+// 			if ( 0 == globalHistos.count( san ) )
+// 				globalHistos[ san ] = (TH1*)h->Clone( san.c_str() );
+// 			else { ERRORC( "Cannot save as " << quote( san ) << " duplicate exists" ); }
+// 		}
+
+// 		// offCan->cd();
+// 		// // rpl.style( h ).draw();
+		
+// 		// if ( !init ){
+// 		// 	init = true;
+// 		// 	h->Draw();
+// 		// 	INFOC( "Forcing Draw with no opts" );
+// 		// 	// INFO( classname(), config.getXString( hpath + ".style:title" ) );
+// 		// 	// h->SetTitle( config.getXString( hpath + ".style:title" ).c_str() );
+// 		// } else {
+// 		// 	// h->Draw( "same" );
+// 		// }
+		
+
+// 		string styleRef = config.getXString( hpath + ":style" );
+// 		INFO( classname(), "Style Ref : " << styleRef );
+// 		if ( config.exists( styleRef ) ){
+// 			rpl.style( h ).set( config, styleRef );
+// 		}
+
+// 		rpl.style( h ).set( config, hpath + ".style" ).draw();
+
+// 		TPaveStats *st = (TPaveStats*)h->FindObject("stats");
+// 		if ( nullptr != st  ){
+// 			INFO( classname(), "Found Stats" );
+// 			positionOptStats( hpath, st );
+// 			// st->SetX1NDC( 0.7 ); st->SetX2NDC( 0.975 );
+// 		}
+
+// 		INFO( classname(), "Drawing " << name );
+// 		iHist++;
+// 	}
+
+// 	return histos;
+
+// } // makeHistograms
+
+
+TH1* VegaXmlPlotter::makeHistogram( string _path, string &fqn ){
+	RooPlotLib rpl;
+
+	TH1* h = findHistogram( _path, 0 );
+	INFOC( "Got " << h );
+	
+
+	for (auto kv : globalHistos ){
+		INFOC( "mem pool : " << kv.first );
+	}
+
+	if ( nullptr == h ) return nullptr;
+	
+	string name = config.getXString( _path + ":name" );
+	string data = config.getXString( _path + ":data" );
+	
+	fqn = fullyQualifiedName( data, name );
+
+	INFOC( "[" << fqn << "] = " << h  );
+	
+	// if ( config.exists( _path + ".Norm" ) && config.getBool( _path + ".Norm", true ) ){
+	// 	if ( nullptr != h && h->Integral() > 0 )
+	// 		h->Scale( 1.0 / h->Integral() );
+	// }
+
+	string styleRef = config.getXString( _path + ":style" );
+	INFOC( "Style Ref : " << styleRef );
+	if ( config.exists( styleRef ) ){
+		rpl.style( h ).set( config, styleRef );
+	}
+
+	rpl.style( h ).set( config, _path + ".style" ).draw();
+
+	TPaveStats *st = (TPaveStats*)h->FindObject("stats");
+	if ( nullptr != st  ){
+		INFOC( "Found Stats" );
+		positionOptStats( _path, st );
+		// st->SetX1NDC( 0.7 ); st->SetX2NDC( 0.975 );
+	}
+	return h;
+}
+
+
+
 
 void VegaXmlPlotter::makeLegend( string _path, map<string, TH1*> &histos ){
 	if ( config.exists( _path + ".Legend" ) ){
 		INFO( classname(), "Legend" );
+
+		RooPlotLib rpl;
 
 		TLegend * leg = new TLegend( 
 			config.getDouble( _path + ".Legend.Position:x1", 0.1 ),
@@ -432,6 +565,12 @@ void VegaXmlPlotter::makeLegend( string _path, map<string, TH1*> &histos ){
 			string t = config.getString(  entryPath + ":title", name );
 			string opt = config.getString(  entryPath + ":opt", "l" );
 
+
+			if ( config.exists( entryPath + ":markersize" ) ){
+				rpl.style( h ).set( config, entryPath );
+			}
+
+
 			leg->AddEntry( h, t.c_str(), opt.c_str() );
 		}
 
@@ -475,10 +614,6 @@ void VegaXmlPlotter::makeLatex( string _path ){
 
 		if ( config.exists( ltpath +":color" ) ){
 			string cs = config.getXString( ltpath + ":color" );
-			// int color = config.getInt( ltpath + ":color" );
-			// if ( cs[0] == '#' && cs.size() == 7 ){
-			// 	color = TColor::GetColor( cs.c_str() );
-			// }
 			latex.SetTextColor( color( cs ) );
 		} else {
 			latex.SetTextColor( kBlack );
@@ -488,6 +623,11 @@ void VegaXmlPlotter::makeLatex( string _path ){
 		TLatex * TL = latex.DrawLatexNDC( config.getFloat( ltpath + ":x" ), 
 							config.getFloat( ltpath + ":y" ), 
 							config.getXString( ltpath + ":text" ).c_str() );
+
+		if ( config.exists( ltpath + ":font" ) ){
+			TL->SetTextFont( config.getInt( ltpath + ":font" ) );
+		}
+
 	}
 }
 
@@ -516,14 +656,19 @@ void VegaXmlPlotter::makeLine( string _path ){
 
 }
 
-void VegaXmlPlotter::makeExports( string _path ){
-	vector<string> exp_paths = config.childrenOf( _path, "Export" );
+void VegaXmlPlotter::makeExports( string _path, TPad * _pad ){
+	INFOC( "Making Export @ " << _path );
+	vector<string> exp_paths = config.childrenOf( _path, "Export", 1 );
+	
+	if ( nullptr == _pad ) _pad = (TPad*)gPad;
+	if ( nullptr == _pad ) return; 
 	for ( string epath : exp_paths ){
 		if ( !config.exists( epath + ":url" ) ) continue;
-
 		string url = config.getXString( epath + ":url" );
-		gPad->Print( url.c_str() );
-		INFO( classname(), "Exporting gPad to " << url );
+		INFOC( "Exporting gPad to " << url );
+
+		_pad->Print( url.c_str() );
+		
 	}
 }
 
@@ -901,4 +1046,37 @@ void VegaXmlPlotter::makeScale( string _path ){
 
 	hOther->Scale( factor, opt.c_str() );
 	globalHistos[nn] = hOther;
+}
+
+
+
+void VegaXmlPlotter::drawCanvas( string _path ){
+
+	XmlCanvas xcanvas( config, _path );
+	
+	vector<string> ppads = config.childrenOf( _path, "Pad" );
+	vector<string> pplots = config.childrenOf( _path, "Plots" );
+	vector<string> paths = ppads;
+	
+	if ( ppads.size() <= 0 ) paths = pplots;
+
+	for ( string p : paths ){
+		string n = config.getXString( p + ":name", "" );
+		INFOC( "Painting PAD " << n );
+		if ( "" == n ){
+			WARNC( "Skipping pad without name" );
+			continue;
+		}
+
+		TPad * pad = xcanvas.activatePad( n );
+
+		makePlot( p );
+		pad->Update();
+		// pad->Print( ("pad_" + n + ".pdf").c_str() );
+		// makeExports( p );
+
+	} // loop over pads
+	xcanvas.getCanvas()->Update();
+
+	makeExports( _path, xcanvas.getCanvas() );
 }

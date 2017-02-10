@@ -37,7 +37,7 @@ common_env.Append(CPPPATH		= paths)
 common_env.Append(LIBS 			= [ "libRooBarbCore.a", "libRooBarbConfig.a", "libRooBarbTasks.a", "libRooBarbRootAna.a", "libRooBarbUnitTest.a", "libRooBarbExtra.a" ] )
 common_env.Append(LIBPATH 		= [ JDB_LIB + "/lib/" ] )
 
-common_env[ "_LIBFLAGS" ] = common_env[ "_LIBFLAGS" ] + " " + ROOTLIBS + " "
+common_env[ "_LIBFLAGS" ] = common_env[ "_LIBFLAGS" ] + " " + ROOTLIBS + " " 
 
 
 jdb_log_level = ARGUMENTS.get( "ll", 60 )
