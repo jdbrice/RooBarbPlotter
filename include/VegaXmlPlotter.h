@@ -23,6 +23,7 @@ using namespace std;
 #include "TPad.h"
 #include "TPaveStats.h"
 #include "TApplication.h"
+#include "TColor.h"
 
 class VegaXmlPlotter : public TaskRunner
 {
