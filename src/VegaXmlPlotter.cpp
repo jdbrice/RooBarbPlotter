@@ -12,6 +12,9 @@ void VegaXmlPlotter::initialize(){
 
 void VegaXmlPlotter::make() {
 
+	TCanvas *c = new TCanvas( "rp" );
+	c->Print( "rp.pdf[" );
+
 	loadData();
 	makeOutputFile();
 
@@ -27,6 +30,8 @@ void VegaXmlPlotter::make() {
 		dataOut->Write();
 		dataOut->Close();
 	}
+
+	c->Print( "rp.pdf]" );
 }
 
 void VegaXmlPlotter::loadDataFile( string _path ){
@@ -275,6 +280,28 @@ map<string, TH1*> VegaXmlPlotter::makeHistograms( string _path ){
 
 	for ( string hpath : hist_paths ){
 
+		if ( config.exists( hpath + ":names" ) ){
+			INFOC( "HISTOGRAM TEMPLATE at " << hpath );
+
+			vector<string> names = config.getStringVector( hpath + ":names" );
+			int i = 0;
+			for ( string name : names ){
+
+				// set the global vars for this template
+				config.set( hpath + ":name", name );
+				config.set( "i", ts(i) );
+
+				INFOC( "Histogram from template name = " << config.getXString( hpath + ":name" ) );
+
+				string fqn = "";
+				TH1 * h = makeHistogram( hpath, fqn );
+				histos[ nameOnly(fqn) ] = h;
+				histos[ fqn ] = h;
+				i++;
+			}
+			continue;
+		}
+
 		string fqn = "";
 		TH1 * h = makeHistogram( hpath, fqn );
 		histos[ nameOnly(fqn) ] = h;
@@ -285,189 +312,6 @@ map<string, TH1*> VegaXmlPlotter::makeHistograms( string _path ){
 
 	return histos;
 }
-
-
-
-// map<string, TH1*> VegaXmlPlotter::makeHistograms( string _path ){
-// 	// Logger::setGlobalLogLevel( "debug" );
-
-	
-// 	RooPlotLib rpl;
-
-// 	map<string, TH1*> histos;
-
-// 	vector<string> hist_paths = config.childrenOf( _path, "Histo" );
-// 	sort( hist_paths.begin(), hist_paths.end() );
-// 	bool init = false;
-// 	int iHist = 0;
-// 	for ( string hpath : hist_paths ){
-// 		string name= config[ hpath + ":name" ];
-// 		INFO( classname(), "Found Histo [" << name << "]" );
-
-// 		// string data = config.getXString( hpath + ":data" );
-// 		// if ( dataFiles.count( data ) <= 0 || !dataFiles[ data ] ) continue;
-		
-// 		// TH1 * h = (TH1*)dataFiles[ data ]->Get( name.c_str() )->Clone( ("hist_" + ts(iHist)).c_str() );
-// 		TH1 *h = findHistogram( hpath, iHist );
-// 		INFO( classname(), "Got " << h );
-		
-
-// 		for (auto kv : histos ){
-// 			INFOC( "mem pool : " << kv.first );
-// 		}
-
-// 		// if ( nullptr == h && (histos.count(name) <= 0 || nullptr == histos[name] ) ) continue;
-		
-// 		if ( nullptr == h ) continue;
-
-// 		// These maight not be unique for multiple datasets so use at your own risk
-// 		histos[ name ] = h;
-// 		// always add the fqn -> data:name
-// 		string data = config.getXString( hpath + ":data" );
-// 		INFO( classname(), "[" << data + "/" + name << "] = " << h  );
-// 		histos[ data + "/" + name ] = h;
-
-// 		// transforms
-// 		if ( config.exists( hpath + ".Scale" ) && config.getDouble( hpath + ".Scale" ) ){
-// 			h->Scale( config.getDouble( hpath + ".Scale" ) );
-// 		}
-		
-// 		if ( config.exists( hpath + ".RebinX" ) && config.getDouble( hpath + ".RebinX" ) ){
-// 			h->RebinX( config.getDouble( hpath + ".RebinX" ) );
-// 		}
-// 		// if ( config.exists( hpath + ".RebinY" ) && config.getDouble( hpath + ".RebinY" ) ){
-// 		// 	h->RebinY( config.getDouble( hpath + ".RebinY" ) );
-// 		// }
-// 		if ( config.exists( hpath + ".Divide" ) ){
-// 			TH1 * hOther = findHistogram( hpath + ".Divide", iHist * 1000 );
-// 			if ( hOther ){
-// 				string new_name = config.getXString( hpath + ".Divide:save_as", name + "_div_" + hOther->GetName() );
-// 				INFOC( "Divide histograms and saving as " << quote( new_name ) );
-// 				TH1 * hDiv = (TH1*)h->Clone( new_name.c_str() );
-// 				hDiv->Divide( hOther );
-// 				histos[ new_name ] = hDiv;
-// 				if ( globalHistos.count( new_name ) == 0 )
-// 					globalHistos[ new_name ] = hDiv;
-// 				else { ERRORC( "Cannot save as " << quote( new_name ) << " duplicate exists" ); }
-
-// 				h = hDiv;
-// 			} else {
-// 				ERROR( classname(), "Cannot divide by nullptr" );
-// 			}
-// 		}
-
-// 		if ( config.exists( hpath + ".Add" ) ){
-// 			string p = hpath + ".Add";
-// 			double mod = config.getDouble( p + ":mod", 1.0 );
-// 			TH1 * hOther = findHistogram( p, iHist * 2000 );
-// 			if ( hOther ){
-// 				h->Add( hOther, mod );
-// 			} else {
-// 				ERRORC( "Cannot find histogram to add" );
-// 			}
-// 		}
-
-// 		if ( config.exists( hpath + ".ProjectionY" ) ){
-// 			string p = hpath + ".ProjectionY";
-// 			string npy = data + "/" + name + "_py";
-
-// 			int b1 = config.getInt( p + ":b1", 0 );
-					 
-// 			if ( config.exists( p + ":x1" ) )
-// 				b1 = ((TH2*)h)->GetXaxis()->FindBin( config.getDouble( p + ":x1", 0 ) );
-
-// 			int b2 = config.getInt( p + ":b2", -1 );
-// 			if ( config.exists( p + ":x2" ) )
-// 				b2 = ((TH2*)h)->GetXaxis()->FindBin( config.getDouble( p + ":x2", -1 ) );
-
-// 			INFOC( "ProjectionY [" << npy << "] b1=" << b1 << ", b2="<<b2 );
-
-// 			npy = config.getXString( p + ":name", npy );
-
-// 			TH1 * hOther = ((TH2*)h)->ProjectionY( npy.c_str(), b1, b2 );
-// 			h = hOther;
-
-// 			// add it to the record
-// 			histos[ npy ] = h;
-// 		}
-
-// 		if ( config.exists( hpath + ".ProjectionX" ) ){
-// 			string p = hpath + ".ProjectionX";
-// 			string npx = data + "/" + name + "_px";
-
-// 			int b1 = config.getInt( p + ":b1", 0 );
-// 			if ( config.exists( p + ":y1" ) ){
-// 				double y1 = config.getDouble( p + ":y1", -1 );
-// 				INFOC( "ProjectionX y1=" << y1 );
-// 				b1 = ((TH2*)h)->GetYaxis()->FindBin( y1 );
-// 			}
-			
-// 			int b2 = config.getInt( p + ":b2", -1 );
-// 			if ( config.exists( p + ":y2" ) ){
-// 				double y2 = config.getDouble( p + ":y2", -1 );
-// 				INFOC( "ProjectionX y2=" << y2 );
-// 				b2 = ((TH2*)h)->GetYaxis()->FindBin( y2 );
-// 			}
-// 			INFOC( "ProjectionX [" << npx << "] b1=" << b1 << ", b2="<<b2 );
-
-// 			npx = config.getXString( p + ":name", npx );
-
-// 			TH1 * hOther = ((TH2*)h)->ProjectionX( npx.c_str(), b1, b2 );
-// 			h = hOther;
-
-// 			histos[ npx ] = h;
-// 		}
-
-// 		if ( config.exists( hpath + ".Norm" ) && config.getBool( hpath + ".Norm", true ) ){
-// 			if ( nullptr != h && h->Integral() > 0 )
-// 				h->Scale( 1.0 / h->Integral() );
-// 		}
-
-
-// 		// MUST BE LAST!
-// 		if ( config.exists( hpath + ".Save" ) && config.exists( hpath + ".Save:name" ) ){
-// 			string san = config.getXString( hpath + ".Save:name" );
-// 			if ( 0 == globalHistos.count( san ) )
-// 				globalHistos[ san ] = (TH1*)h->Clone( san.c_str() );
-// 			else { ERRORC( "Cannot save as " << quote( san ) << " duplicate exists" ); }
-// 		}
-
-// 		// offCan->cd();
-// 		// // rpl.style( h ).draw();
-		
-// 		// if ( !init ){
-// 		// 	init = true;
-// 		// 	h->Draw();
-// 		// 	INFOC( "Forcing Draw with no opts" );
-// 		// 	// INFO( classname(), config.getXString( hpath + ".style:title" ) );
-// 		// 	// h->SetTitle( config.getXString( hpath + ".style:title" ).c_str() );
-// 		// } else {
-// 		// 	// h->Draw( "same" );
-// 		// }
-		
-
-// 		string styleRef = config.getXString( hpath + ":style" );
-// 		INFO( classname(), "Style Ref : " << styleRef );
-// 		if ( config.exists( styleRef ) ){
-// 			rpl.style( h ).set( config, styleRef );
-// 		}
-
-// 		rpl.style( h ).set( config, hpath + ".style" ).draw();
-
-// 		TPaveStats *st = (TPaveStats*)h->FindObject("stats");
-// 		if ( nullptr != st  ){
-// 			INFO( classname(), "Found Stats" );
-// 			positionOptStats( hpath, st );
-// 			// st->SetX1NDC( 0.7 ); st->SetX2NDC( 0.975 );
-// 		}
-
-// 		INFO( classname(), "Drawing " << name );
-// 		iHist++;
-// 	}
-
-// 	return histos;
-
-// } // makeHistograms
 
 
 TH1* VegaXmlPlotter::makeHistogram( string _path, string &fqn ){
@@ -511,6 +355,7 @@ TH1* VegaXmlPlotter::makeHistogram( string _path, string &fqn ){
 	}
 	return h;
 }
+
 
 
 
@@ -792,6 +637,65 @@ void VegaXmlPlotter::makeTransform( string tpath ){
 }
 
 
+void VegaXmlPlotter::makeProjection( string _path ){
+	if ( !config.exists( _path + ":save_as" ) ){
+		ERRORC( "Must provide " << quote( "save_as" ) << " attribute to save transformation" );
+		return;
+	}
+
+	string nn = config.getXString( _path + ":save_as" );
+	string axis = config.getXString( _path + ":axis", "x" );
+
+	TH1 * h = findHistogram( _path, 0 );
+	TH2 *h2 = dynamic_cast<TH2*>(h);
+	TH3 *h3 = dynamic_cast<TH3*>(h);
+	
+	if ( nullptr == h ) {
+		ERRORC( "Could not find histogram " << quote( nn ) );
+		return;
+	}
+
+	if ( nullptr != h3 ){
+
+		if ( "x" == axis || "X" == axis ){
+			int by1 = getProjectionBin( _path, h, "y", "1",  0 );
+			int by2 = getProjectionBin( _path, h, "y", "2", -1 );
+
+			int bz1 = getProjectionBin( _path, h, "z", "1",  0 );
+			int bz2 = getProjectionBin( _path, h, "z", "2", -1 );
+
+			TH1 * hNew = h3->ProjectionX( nn.c_str(), by1, by2, bz1, bz2 );
+			globalHistos[ nn ] = hNew;
+		} else if ( "y" == axis || "Y" == axis ){
+			int bx1 = getProjectionBin( _path, h, "x", "1",  0 );
+			int bx2 = getProjectionBin( _path, h, "x", "2", -1 );
+
+			int bz1 = getProjectionBin( _path, h, "z", "1",  0 );
+			int bz2 = getProjectionBin( _path, h, "z", "2", -1 );
+
+			TH1 * hNew = h3->ProjectionY( nn.c_str(), bx1, bx2, bz1, bz2 );
+			globalHistos[ nn ] = hNew;
+		} else if ( "z" == axis || "Z" == axis ){
+			int bx1 = getProjectionBin( _path, h, "x", "1",  0 );
+			int bx2 = getProjectionBin( _path, h, "x", "2", -1 );
+
+			int by1 = getProjectionBin( _path, h, "y", "1",  0 );
+			int by2 = getProjectionBin( _path, h, "y", "2", -1 );
+
+			TH1 * hNew = h3->ProjectionZ( nn.c_str(), bx1, bx2, by1, by2 );
+			globalHistos[ nn ] = hNew;
+		}
+
+	} else if ( nullptr != h2 ){
+		if ( "x" == axis || "X" == axis )
+			return makeProjectionX( _path );
+		else 
+			return makeProjectionY( _path );
+	}
+
+}
+
+
 void VegaXmlPlotter::makeProjectionX( string _path){
 	if ( !config.exists( _path + ":save_as" ) ){
 		ERRORC( "Must provide " << quote( "save_as" ) << " attribute to save transformation" );
@@ -1068,10 +972,17 @@ void VegaXmlPlotter::drawCanvas( string _path ){
 			continue;
 		}
 
-		TPad * pad = xcanvas.activatePad( n );
+		XmlPad * xpad = xcanvas.activatePad( n );
 
+		// move pad to origin
+		xpad->moveToOrigin();
+		xpad->getRootPad()->Update();
+		
 		makePlot( p );
-		pad->Update();
+
+		xpad->reposition();
+		xpad->getRootPad()->Update();
+		// pad->Update();
 		// pad->Print( ("pad_" + n + ".pdf").c_str() );
 		// makeExports( p );
 

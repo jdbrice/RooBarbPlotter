@@ -4,6 +4,7 @@
 #include "TaskRunner.h"
 #include "RooPlotLib.h"
 #include "HistoBook.h"
+#include "XmlPad.h"
 
 using namespace jdb;
 
@@ -67,6 +68,7 @@ public:
 	// Transforms
 	virtual void makeTransforms();
 	virtual void makeTransform( string _tpath );
+	virtual void makeProjection( string _path );
 	virtual void makeProjectionX( string _path);
 	virtual void makeProjectionY( string _path);
 	virtual void makeMultiAdd( string _path);
@@ -91,6 +93,27 @@ public:
 			return TColor::GetColor( _color.c_str() );
 		}
 		return atoi( _color.c_str() );
+	}
+
+	int getProjectionBin( string _path, TH1 * _h, string _axis="x", string _n="1", int _def = -1 ){
+		
+		if ( nullptr == _h ) return 1;
+
+
+		TAxis *axis = _h->GetXaxis();
+		if ( "y" == _axis || "Y" == _axis ) axis = _h->GetYaxis();
+		if ( "z" == _axis || "Z" == _axis ) axis = _h->GetZaxis();
+		
+		string binAttr = _path + ":" + _axis + "b" + _n;
+		string valAttr = _path + ":" + _axis + _n;
+
+		int b = config.getInt( binAttr, _def );
+		
+		if ( config.exists( valAttr ) ){
+			double v = config.getDouble( _path + ":y1", _def );
+			b = axis->FindBin( v );
+		}
+		return b;
 	}
 
 	string nameOnly( string fqn ){
