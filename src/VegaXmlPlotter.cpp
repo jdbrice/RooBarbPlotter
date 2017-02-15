@@ -67,6 +67,9 @@ void VegaXmlPlotter::loadChain( string _path ){
 void VegaXmlPlotter::loadData(){
 	vector<string> data_nodes = config.childrenOf( nodePath, "Data" );
 
+	INFOC( "Found " << data_nodes.size() << " data nodes" );
+
+
 	for ( string path : data_nodes ){
 		if ( config.exists( path + ":name" ) && !config.exists( path + ":treeName" ) ){
 			loadDataFile( path );
@@ -74,6 +77,11 @@ void VegaXmlPlotter::loadData(){
 			loadChain( path );
 		}
 	}
+
+	if ( data_nodes.size() <= 0 ){
+		WARNC( "No Data nodes found" );
+	}
+
 } // loadData
 
 
@@ -407,8 +415,8 @@ void VegaXmlPlotter::makeLegend( string _path, map<string, TH1*> &histos ){
 			if ( histos.count( name ) <= 0 || histos[ name ] == nullptr ) continue;
 			TH1 * h = histos[ name ];
 			INFO( classname(), "Entry histo=" << h );
-			string t = config.getString(  entryPath + ":title", name );
-			string opt = config.getString(  entryPath + ":opt", "l" );
+			string t = config.getXString(  entryPath + ":title", name );
+			string opt = config.getXString(  entryPath + ":opt", "l" );
 
 
 			if ( config.exists( entryPath + ":markersize" ) ){
