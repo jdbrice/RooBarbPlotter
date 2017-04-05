@@ -32,7 +32,7 @@ public:
 	VegaXmlPlotter() {}
 	~VegaXmlPlotter() {}
 
-	virtual void initialize();
+	virtual void init();
 	virtual void make();
 
 	// shared_ptr<HistoBook> book;
