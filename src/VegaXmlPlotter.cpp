@@ -42,6 +42,7 @@ void VegaXmlPlotter::make() {
 	c->Print( "rp.pdf]" );
 
 	config.toXmlFile( "compiled_config.xml" );
+	config.dumpToFile( "config_dump.txt" );
 }
 
 void VegaXmlPlotter::loadDataFile( string _path ){

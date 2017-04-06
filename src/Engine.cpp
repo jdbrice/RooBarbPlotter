@@ -13,7 +13,7 @@ int main( int argc, char* argv[] ) {
 
 	TaskFactory::registerTaskRunner<VegaXmlPlotter>( "VegaXmlPlotter" );
 
-	TaskEngine engine( argc, argv );
+	TaskEngine engine( argc, argv, "VegaXmlPlotter" );
 
 	return 0;
 }
