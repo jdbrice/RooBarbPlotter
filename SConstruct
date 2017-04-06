@@ -41,11 +41,13 @@ common_env[ "_LIBFLAGS" ] = common_env[ "_LIBFLAGS" ] + " " + ROOTLIBS + " "
 
 
 jdb_log_level = ARGUMENTS.get( "ll", 60 )
+vega_debug = ARGUMENTS.get( "debug", 0 )
 common_env.Append(CXXFLAGS 		= "-DJDB_LOG_LEVEL=" + str(jdb_log_level) )
 
-debug = ARGUMENTS.get( "debug", 0 )
-if not debug :
-	common_env.Append(CXXFLAGS 		= "-DNDEBUG" )
+print "DEBUG ", vega_debug
+if int(vega_debug) > 0 :
+	print "DEBUG ENABLED"
+	common_env.Append(CXXFLAGS 		= "-DVEGADEBUG=1" )
 
 target = common_env.Program( target='bin/rbp', source=[Glob( "src/*.cpp" )] )
 
