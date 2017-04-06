@@ -8,8 +8,19 @@
 #define LOGURU_IMPLEMENTATION 1
 #include "loguru.h"
 
+// #define VEGADEBUG 1
+
+
+#if VEGADEBUG > 0
+	#define DLOG( ... ) LOG_F(1, __VA_ARGS__)
+	#define DSCOPE() LOG_SCOPE_FUNCTION(INFO)
+#else
+	#define DLOG( ... ) do {} while(0)
+	#define DSCOPE() do {} while(0)
+#endif
+
 void VegaXmlPlotter::init(){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 	string logfile = config[ "Logger:url" ];
 	if ( config.exists( "Logger:url" ) ){
 		loguru::add_file(logfile.c_str(), loguru::Truncate, loguru::Verbosity_MAX);
@@ -18,7 +29,7 @@ void VegaXmlPlotter::init(){
 }
 
 void VegaXmlPlotter::make() {
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 
 	TCanvas *c = new TCanvas( "rp" );
 	c->Print( "rp.pdf[" );
@@ -46,7 +57,7 @@ void VegaXmlPlotter::make() {
 }
 
 void VegaXmlPlotter::loadDataFile( string _path ){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 	if ( config.exists( _path + ":name" ) ){
 		string name = config.getXString( _path+":name" );
 		string url = config.getXString( _path+":url" );
@@ -57,13 +68,13 @@ void VegaXmlPlotter::loadDataFile( string _path ){
 } // loadDataFiles
 
 int VegaXmlPlotter::numberOfData() {
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 	return dataFiles.size() + dataChains.size();
 }
 
 
 void VegaXmlPlotter::loadChain( string _path ){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 	string name     = config.getXString( _path + ":name" );
 	string treeName = config.getXString( _path + ":treeName" );
 	string url      = config.getXString( _path + ":url" );
@@ -79,7 +90,7 @@ void VegaXmlPlotter::loadChain( string _path ){
 }
 
 void VegaXmlPlotter::loadData(){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 	vector<string> data_nodes = config.childrenOf( nodePath, "Data" );
 	
 	LOG_F( INFO, "Found %lu data nodes", data_nodes.size() );
@@ -99,7 +110,7 @@ void VegaXmlPlotter::loadData(){
 
 
 void VegaXmlPlotter::makeOutputFile(){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 	if ( config.exists( "TFile:url" ) ){
 		dataOut = new TFile( config.getXString( "TFile:url" ).c_str(), "RECREATE" );
 	} else {
@@ -108,7 +119,7 @@ void VegaXmlPlotter::makeOutputFile(){
 }
 
 void VegaXmlPlotter::makePlotTemplates(){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 	vector<string> plott_paths = config.childrenOf( nodePath, "PlotTemplate" );
 	//INFO( classname(), "Found " << plott_paths.size() << plural( plott_paths.size(), " Plot", " Plots" ) );
 	for ( string path : plott_paths ){
@@ -120,6 +131,7 @@ void VegaXmlPlotter::makePlotTemplates(){
 			config.set( "name", name );
 			config.set( "iPlot", ts(iPlot) );
 
+			makeMargins( path );
 			makePlot( path );
 			iPlot++;
 		}
@@ -127,7 +139,7 @@ void VegaXmlPlotter::makePlotTemplates(){
 }
 
 void VegaXmlPlotter::makePlot( string _path, TPad * _pad ){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 	DLOG_F( INFO, "Makign Plot[%s] @ %s", config.getString( _path+":name", "" ).c_str(), _path.c_str() );
 
 	if ( config.exists( _path + ".Palette" ) ){
@@ -146,7 +158,7 @@ void VegaXmlPlotter::makePlot( string _path, TPad * _pad ){
 }
 
 void VegaXmlPlotter::makePlots(){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 	vector<string> plot_paths = config.childrenOf( nodePath, "Plot" );
 	
 	DLOG_S(INFO) << "Found " << plot_paths.size() << plural( plot_paths.size(), " Plot", " Plots" );
@@ -160,7 +172,7 @@ void VegaXmlPlotter::makePlots(){
 }
 
 void VegaXmlPlotter::makeCanvases(){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 	vector<string> c_paths = config.childrenOf( nodePath, "Canvas" );
 	//INFO( classname(), "Found " << c_paths.size() << plural( c_paths.size(), " Canvas", " Canvases" ) );
 	for ( string path : c_paths ){
@@ -169,7 +181,7 @@ void VegaXmlPlotter::makeCanvases(){
 }
 
 // void VegaXmlPlotter::makeHistoStack( map<string, TH1*> histos ){
-// LOG_SCOPE_FUNCTION(INFO);
+// DSCOPE();
 // 	THStack *hs = new THStack( "hs", "" );
 // 	for ( auto kv : histos ){
 // 		hs->Add( kv.second );
@@ -179,31 +191,42 @@ void VegaXmlPlotter::makeCanvases(){
 // }
 
 void VegaXmlPlotter::makeMargins( string _path ){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 	
-	// Global first
-	if ( config.exists( "Margins:top" ) )
-		gPad->SetTopMargin( config.getDouble( "Margins:top" ) );
-	if ( config.exists( "Margins:right" ) )
-		gPad->SetRightMargin( config.getDouble( "Margins:right" ) );
-	if ( config.exists( "Margins:bottom" ) )
-		gPad->SetBottomMargin( config.getDouble( "Margins:bottom" ) );
-	if ( config.exists( "Margins:left" ) )
-		gPad->SetLeftMargin( config.getDouble( "Margins:left" ) );
+	float tm=-1, rm=-1, bm=-1, lm=-1;
 
-	if ( config.exists( _path + ".Margins:top" ) )
-		gPad->SetTopMargin( config.getDouble( _path + ".Margins:top" ) );
-	if ( config.exists( _path + ".Margins:right" ) )
-		gPad->SetRightMargin( config.getDouble( _path + ".Margins:right" ) );
-	if ( config.exists( _path + ".Margins:bottom" ) )
-		gPad->SetBottomMargin( config.getDouble( _path + ".Margins:bottom" ) );
-	if ( config.exists( _path + ".Margins:left" ) )
-		gPad->SetLeftMargin( config.getDouble( _path + ".Margins:left" ) );
+	vector<float> parts = config.getFloatVector( "Margins" );
+	if ( parts.size() >= 4 ){
+		tm=parts[0];rm=parts[1];bm=parts[2];lm=parts[3];
+	}
+
+	parts = config.getFloatVector( _path + ".Margins" );
+	if ( parts.size() >= 4 ){
+		tm=parts[0];rm=parts[1];bm=parts[2];lm=parts[3];
+	}
+
+	// Global first
+	
+	tm = config.getFloat( "Margins:top"    , tm );
+	rm = config.getFloat( "Margins:right"  , rm );
+	bm = config.getFloat( "Margins:bottom" , bm );
+	lm = config.getFloat( "Margins:left"   , lm );
+
+	tm = config.getFloat( _path + ".Margins:top"    , tm );
+	rm = config.getFloat( _path + ".Margins:right"  , rm );
+	bm = config.getFloat( _path + ".Margins:bottom" , bm );
+	lm = config.getFloat( _path + ".Margins:left"   , lm );
+
+	LOG_F( INFO, "Margins( %f, %f, %f, %f )", tm, rm, bm, lm );
+	if ( tm>=0 ) gPad->SetTopMargin( tm );
+	if ( rm>=0 ) gPad->SetRightMargin( rm );
+	if ( bm>=0 ) gPad->SetBottomMargin( bm );
+	if ( lm>=0 ) gPad->SetLeftMargin( lm );
 }
 
 
 TH1 *VegaXmlPlotter::findHistogram( string _data, string _name ){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 
 	// TODO: add support for splitting name inot data and name by "/"
 	
@@ -231,7 +254,7 @@ TH1 *VegaXmlPlotter::findHistogram( string _data, string _name ){
 }
 
 TH1* VegaXmlPlotter::findHistogram( string _path, int iHist, string _mod ){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 
 	string data = config.getXString( _path + ":data" + _mod, config.getXString( _path + ":data" ) );
 	string name = config.getXString( _path + ":name" + _mod, config.getXString( _path + ":name" + _mod ) );
@@ -269,7 +292,7 @@ TH1* VegaXmlPlotter::findHistogram( string _path, int iHist, string _mod ){
 
 
 TH1* VegaXmlPlotter::makeAxes( string _path ){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 	
 	if ( !config.exists( _path ) ) return nullptr;
 
@@ -310,7 +333,7 @@ TH1* VegaXmlPlotter::makeAxes( string _path ){
 
 
 map<string, TH1*> VegaXmlPlotter::makeHistograms( string _path ){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 	map<string, TH1*> histos;
 	vector<string> hist_paths = config.childrenOf( _path, "Histo" );
 
@@ -351,7 +374,7 @@ map<string, TH1*> VegaXmlPlotter::makeHistograms( string _path ){
 
 
 TH1* VegaXmlPlotter::makeHistogram( string _path, string &fqn ){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 	RooPlotLib rpl;
 
 	TH1* h = findHistogram( _path, 0 );
@@ -394,11 +417,8 @@ TH1* VegaXmlPlotter::makeHistogram( string _path, string &fqn ){
 }
 
 
-
-
-
 void VegaXmlPlotter::makeLegend( string _path, map<string, TH1*> &histos ){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 	if ( config.exists( _path + ".Legend" ) ){
 		//INFO( classname(), "Legend" );
 
@@ -483,7 +503,7 @@ void VegaXmlPlotter::makeLegend( string _path, map<string, TH1*> &histos ){
 }
 
 void VegaXmlPlotter::makeLatex( string _path ){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 	//INFO( classname(), "_path=" << quote(_path) );
 	
 	TLatex latex;
@@ -516,7 +536,7 @@ void VegaXmlPlotter::makeLatex( string _path ){
 }
 
 void VegaXmlPlotter::makeLine( string _path ){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 	//INFO( classname(), "_path=" << quote(_path) );
 
 	vector<string> line_paths = config.childrenOf( _path, "TLine", 1 );
@@ -542,7 +562,7 @@ void VegaXmlPlotter::makeLine( string _path ){
 }
 
 void VegaXmlPlotter::makeExports( string _path, TPad * _pad ){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 	//INFOC( "Making Export @ " << _path );
 	vector<string> exp_paths = config.childrenOf( _path, "Export", 1 );
 	
@@ -559,7 +579,7 @@ void VegaXmlPlotter::makeExports( string _path, TPad * _pad ){
 }
 
 TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 	string data = config.getXString( _path + ":data" );
 	TChain * chain = dataChains[ data ];
 	string title = config.getXString( _path + ":title" );
@@ -575,8 +595,7 @@ TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
 		HistoBook::make( "D", hName, title, bx, by, bz );
 	}
 
-
-	//INFO( classname(), "TTree->Draw( \"" << drawCmd << "\", \"" << selectCmd << "\" )" );
+	LOG_S(INFO) << "TTree->Draw( \"" << drawCmd << "\", \"" << selectCmd << "\" )";
 	chain->Draw( drawCmd.c_str(), selectCmd.c_str() );
 
 
@@ -587,7 +606,7 @@ TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
 }
 
 void VegaXmlPlotter::positionOptStats( string _path, TPaveStats * st ){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 	if ( nullptr == st ) return;
 
 	// global first
@@ -612,7 +631,7 @@ void VegaXmlPlotter::positionOptStats( string _path, TPaveStats * st ){
 }
 
 TCanvas* VegaXmlPlotter::makeCanvas( string _path ){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 	int width = -1, height = -1;
 	// global first
 	width = config.getInt( "TCanvas:width", -1 );
@@ -635,8 +654,9 @@ TCanvas* VegaXmlPlotter::makeCanvas( string _path ){
 
 
 void VegaXmlPlotter::makeTransforms(  ){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 	vector<string> tform_paths = config.childrenOf( nodePath, "Transform" );
+	LOG_F( INFO, "Found %d Transforms", tform_paths.size() );
 	//INFOC( "Found " << tform_paths.size() << plural( tform_paths.size(), " Transform set", " Transform sets" ) );
 	
 	for ( string path : tform_paths ){
@@ -656,9 +676,11 @@ void VegaXmlPlotter::makeTransforms(  ){
 }
 
 void VegaXmlPlotter::makeTransform( string tpath ){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 	vector<string> tform_paths = config.childrenOf( tpath );
+	LOG_F( INFO, "Found %d Transform paths", tform_paths.size() );
 	//INFOC( "Found " << tform_paths.size() << plural( tform_paths.size(), " Transform", " Transforms" ) );
+
 
 	// TODO function map from string to transform??
 	for ( string tform : tform_paths ){
@@ -677,6 +699,8 @@ void VegaXmlPlotter::makeTransform( string tpath ){
 			makeRebin( tform );
 		if ( "Scale" == tn )
 			makeScale( tform );
+		if ( "Draw" == tn )
+			makeDraw( tform );
 		
 
 	}
@@ -684,7 +708,7 @@ void VegaXmlPlotter::makeTransform( string tpath ){
 
 
 void VegaXmlPlotter::makeProjection( string _path ){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 	if ( !config.exists( _path + ":save_as" ) ){
 		// ERRORC( "Must provide " << quote( "save_as" ) << " attribute to save transformation" );
 		return;
@@ -744,7 +768,7 @@ void VegaXmlPlotter::makeProjection( string _path ){
 
 
 void VegaXmlPlotter::makeProjectionX( string _path){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 	if ( !config.exists( _path + ":save_as" ) ){
 		// ERRORC( "Must provide " << quote( "save_as" ) << " attribute to save transformation" );
 		return;
@@ -782,7 +806,7 @@ void VegaXmlPlotter::makeProjectionX( string _path){
 }
 
 void VegaXmlPlotter::makeProjectionY( string _path){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 	if ( !config.exists( _path + ":save_as" ) ){
 		// ERRORC( "Must provide " << quote( "save_as" ) << " attribute to save transformation" );
 		return;
@@ -820,7 +844,7 @@ void VegaXmlPlotter::makeProjectionY( string _path){
 }
 
 void VegaXmlPlotter::makeMultiAdd( string _path ){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 	if ( !config.exists( _path + ":save_as" ) ){
 		// ERRORC( "Must provide " << quote( "save_as" ) << " attribute to save transformation" );
 		return;
@@ -858,7 +882,7 @@ void VegaXmlPlotter::makeMultiAdd( string _path ){
 }
 
 void VegaXmlPlotter::makeAdd( string _path){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 	if ( !config.exists( _path + ":save_as" ) ){
 		// ERRORC( "Must provide " << quote( "save_as" ) << " attribute to save transformation" );
 		return;
@@ -885,7 +909,7 @@ void VegaXmlPlotter::makeAdd( string _path){
 	globalHistos[nn] = hSum;
 }
 void VegaXmlPlotter::makeDivide( string _path){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 	if ( !config.exists( _path + ":save_as" ) ){
 		// ERRORC( "Must provide " << quote( "save_as" ) << " attribute to save transformation" );
 		return;
@@ -908,7 +932,7 @@ void VegaXmlPlotter::makeDivide( string _path){
 }
 
 void VegaXmlPlotter::makeRebin( string _path ){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 	// rebins to array of bin edges
 	if ( !config.exists( _path + ":save_as" ) ){
 		// ERRORC( "Must provide " << quote( "save_as" ) << " attribute to save transformation" );
@@ -982,7 +1006,7 @@ void VegaXmlPlotter::makeRebin( string _path ){
 }
 
 void VegaXmlPlotter::makeScale( string _path ){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 
 	if ( !config.exists( _path + ":save_as" ) ){
 		// ERRORC( "Must provide " << quote( "save_as" ) << " attribute to save transformation" );
@@ -1006,10 +1030,29 @@ void VegaXmlPlotter::makeScale( string _path ){
 	globalHistos[nn] = hOther;
 }
 
+void VegaXmlPlotter::makeDraw( string _path ){
+	DSCOPE();
+	if ( !config.exists( _path + ":save_as" ) ){
+		LOG_S( ERROR) << "Must provide " << quote( "save_as" ) << " attribute to save transformation";
+		return;
+	}
+
+	string d = config.getXString( _path + ":data" );
+	string n = config.getXString( _path + ":name" );
+	TH1 * h = makeHistoFromDataTree( _path, 0 ); //findHistogram( _path, 0 );
+	if ( nullptr == h ) {
+		// ERRORC( "Could not find histogram " << quote( d + "/" + n ) );
+		return;
+	}
+
+	string nn = config.getXString( _path + ":save_as" );
+	globalHistos[ nn ] = h;
+}
+
 
 
 void VegaXmlPlotter::drawCanvas( string _path ){
-	LOG_SCOPE_FUNCTION(INFO);
+	DSCOPE();
 
 	XmlCanvas xcanvas( config, _path );
 	

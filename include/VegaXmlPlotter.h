@@ -77,6 +77,7 @@ public:
 	virtual void makeDivide( string _path);
 	virtual void makeRebin( string _path);
 	virtual void makeScale( string _path);
+	virtual void makeDraw( string _path);
 
 	// Canvas based form
 	virtual void makeCanvases();
