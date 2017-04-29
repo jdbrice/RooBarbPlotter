@@ -24,6 +24,7 @@ using namespace std;
 #include "TPaveStats.h"
 #include "TApplication.h"
 #include "TColor.h"
+#include "TDirectory.h"
 
 class VegaXmlPlotter : public TaskRunner
 {
@@ -128,6 +129,15 @@ public:
 		if ( "" == _data )
 			return _name;
 		return _data + "/" + _name;
+	}
+
+	bool typeMatch( TObject *obj, string type );
+	vector<string> glob( string query );
+	map<string, TObject*> dirMap( TDirectory *dir, string prefix ="", bool dive = true );
+
+	string underscape( string in ){
+		std::replace( in.begin(), in.end(), '/', '_' );
+		return in;
 	}
 
 protected:

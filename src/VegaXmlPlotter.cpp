@@ -4,6 +4,9 @@
 
 #include "TLatex.h"
 #include "THStack.h"
+#include "TKey.h"
+#include "TList.h"
+
 
 #define LOGURU_IMPLEMENTATION 1
 #include "loguru.h"
@@ -12,7 +15,7 @@
 
 
 #if VEGADEBUG > 0
-	#define DLOG( ... ) LOG_F(1, __VA_ARGS__)
+	#define DLOG( ... ) LOG_F(INFO, __VA_ARGS__)
 	#define DSCOPE() LOG_SCOPE_FUNCTION(INFO)
 #else
 	#define DLOG( ... ) do {} while(0)
@@ -81,7 +84,11 @@ void VegaXmlPlotter::loadChain( string _path ){
 	int maxFiles    = config.getInt( _path + ":maxFiles", -1 );
 
 	dataChains[ name ] = new TChain( treeName.c_str() );
-	ChainLoader::loadList( dataChains[ name ], url, maxFiles );
+	
+	if ( url.find( ".lis" ) != std::string::npos )
+		ChainLoader::loadList( dataChains[ name ], url, maxFiles );
+	else 
+		ChainLoader::load( dataChains[ name ], url, maxFiles );
 	LOG_S(INFO) << "Loaded TTree [name=" << quote(name) << "] from url: " << url;
 	int nFiles = 0;
 	if ( dataChains[name]->GetListOfFiles() )
@@ -121,14 +128,19 @@ void VegaXmlPlotter::makeOutputFile(){
 void VegaXmlPlotter::makePlotTemplates(){
 	DSCOPE();
 	vector<string> plott_paths = config.childrenOf( nodePath, "PlotTemplate" );
-	//INFO( classname(), "Found " << plott_paths.size() << plural( plott_paths.size(), " Plot", " Plots" ) );
+	DLOG_F( INFO, "Found %lu PlotTemplate", plott_paths.size() );
 	for ( string path : plott_paths ){
 		vector<string> names = config.getStringVector( path + ":names" );
+		if ( names.size() <= 1 ){
+			names = glob( config.getString( path+":names" ) );
+		}
+
 		int iPlot = 0;
 		for ( string name : names ){
 
 			// set the global vars for this template
 			config.set( "name", name );
+			config.set( "uname", underscape(name) );
 			config.set( "iPlot", ts(iPlot) );
 
 			makeMargins( path );
@@ -343,6 +355,10 @@ map<string, TH1*> VegaXmlPlotter::makeHistograms( string _path ){
 			//INFOC( "HISTOGRAM TEMPLATE at " << hpath );
 
 			vector<string> names = config.getStringVector( hpath + ":names" );
+			if ( names.size() <= 1 ){
+				names = glob( config.getString( hpath + ":names" ) );
+			}
+
 			int i = 0;
 			for ( string name : names ){
 
@@ -386,6 +402,9 @@ TH1* VegaXmlPlotter::makeHistogram( string _path, string &fqn ){
 	}
 
 	if ( nullptr == h ) return nullptr;
+
+	config.set( "ClassName", h->ClassName() );
+	DLOG( "ClassName %s", config[ "ClassName" ].c_str() );
 	
 	string name = config.getXString( _path + ":name" );
 	string data = config.getXString( _path + ":data" );
@@ -409,7 +428,6 @@ TH1* VegaXmlPlotter::makeHistogram( string _path, string &fqn ){
 
 	TPaveStats *st = (TPaveStats*)h->FindObject("stats");
 	if ( nullptr != st  ){
-		//INFOC( "Found Stats" );
 		positionOptStats( _path, st );
 		// st->SetX1NDC( 0.7 ); st->SetX2NDC( 0.975 );
 	}
@@ -424,31 +442,58 @@ void VegaXmlPlotter::makeLegend( string _path, map<string, TH1*> &histos ){
 
 		RooPlotLib rpl;
 
-		TLegend * leg = new TLegend( 
-			config.getDouble( _path + ".Legend.Position:x1", 0.1 ),
-			config.getDouble( _path + ".Legend.Position:y1", 0.7 ),
-			config.getDouble( _path + ".Legend.Position:x2", 0.5 ),
-			config.getDouble( _path + ".Legend.Position:y2", 0.9 ) );
+		float x1, y1, x2, y2;
+		x1 = config.getDouble( _path + ".Legend.Position:x1", 0.1 );
+		y1 = config.getDouble( _path + ".Legend.Position:y1", 0.7 );
+		x2 = config.getDouble( _path + ".Legend.Position:x2", 0.5 );
+		y2 = config.getDouble( _path + ".Legend.Position:y1", 0.9 );
+
+		
+			// config.getDouble( _path + ".Legend.Position:x1", 0.1 ),
+			// config.getDouble( _path + ".Legend.Position:y1", 0.7 ),
+			// config.getDouble( _path + ".Legend.Position:x2", 0.5 ),
+			// config.getDouble( _path + ".Legend.Position:y2", 0.9 ) );
 		string spos = config.getXString( _path + ".Legend.Position:pos" );
-		if ( spos == "top right" || spos == "topright" ){
-			float w = config.getFloat( _path + ".Legend.Position:w", 0.4 );
-			float h = config.getFloat( _path + ".Legend.Position:h", 0.2 );
 
-			float x2 = 0.9;
-			float y2 = 0.9;
-			if ( nullptr != gPad) x2 = 1.0 - gPad->GetRightMargin();
+		float w = config.getFloat( _path + ".Legend.Position:w", 0.4 );
+		float h = config.getFloat( _path + ".Legend.Position:h", 0.2 );
+
+		if ( spos.find("top") != string::npos ){
+			LOG_F( INFO, "LEGEND: TOP" );
+			y2 = 0.9;
 			if ( nullptr != gPad) y2 = 1.0 - gPad->GetTopMargin();
-
-			float x1 = x2 - w;
-			float y1 = y2 - h;
-
-			leg->SetX1NDC( x1 );
-			leg->SetX2NDC( x2 );
-
-			leg->SetY1NDC( y1 );
-			leg->SetY2NDC( y2 );
+			y1 = y2 - h;
+		}
+		if ( spos.find("right") != string::npos ){
+			LOG_F( INFO, "LEGEND: RIGHT" );
+			x2 = 0.9;
+			if ( nullptr != gPad) x2 = 1.0 - gPad->GetRightMargin();
+			x1 = x2 - w;
+		}
+		if ( spos.find("bottom") != string::npos ){
+			LOG_F( INFO, "LEGEND: BOTTOM" );
+			y1 = 0.1;
+			if ( nullptr != gPad) y1 = gPad->GetBottomMargin();
+			y2 = y1 + h;
+		}
+		if ( spos.find("left") != string::npos ){
+			LOG_F( INFO, "LEGEND: LEFT" );
+			x1 = 0.1;
+			if ( nullptr != gPad) x1 = gPad->GetLeftMargin();
+			x2 = x1 + w;
+		}
+		if ( spos.find("vcenter") != string::npos ){
+			LOG_F( INFO, "LEGEND: VERTICAL CENTER" );
+			y1 = 0.5 - h/2;
+			y2 = 0.5 + h/2;
+		}
+		if ( spos.find("hcenter") != string::npos ){
+			LOG_F( INFO, "LEGEND: HORIZONTAL CENTER" );
+			x1 = 0.5 - w/2;
+			x2 = 0.5 + w/2;
 		}
 
+		TLegend * leg = new TLegend( x1, y1, x2, y2 );
 
 		if ( config.exists(  _path + ".Legend:title" ) ) {
 			leg->SetHeader( config.getXString( _path + ".Legend:title" ).c_str() );
@@ -608,6 +653,8 @@ TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
 void VegaXmlPlotter::positionOptStats( string _path, TPaveStats * st ){
 	DSCOPE();
 	if ( nullptr == st ) return;
+
+	vector<double> pos = config.getDoubleVector( "OptStats" );
 
 	// global first
 	if ( config.exists( "OptStats:x1" ) )
@@ -784,20 +831,35 @@ void VegaXmlPlotter::makeProjectionX( string _path){
 		return;
 	}
 
+	double y1 = -999;
 	int b1 = config.getInt( _path + ":b1", 0 );
 	if ( config.exists( _path + ":y1" ) ){
-		double y1 = config.getDouble( _path + ":y1", -1 );
+		y1 = config.getDouble( _path + ":y1", -1 );
 		//INFOC( "ProjectionX y1=" << y1 );
 		b1 = ((TH2*)h)->GetYaxis()->FindBin( y1 );
 	}
 	
+	double y2 = -999;
 	int b2 = config.getInt( _path + ":b2", -1 );
 	if ( config.exists( _path + ":y2" ) ){
-		double y2 = config.getDouble( _path + ":y2", -1 );
+		y2 = config.getDouble( _path + ":y2", -1 );
 		//INFOC( "ProjectionX y2=" << y2 );
 		b2 = ((TH2*)h)->GetYaxis()->FindBin( y2 );
 	}
 	//INFOC( "ProjectionX [" << nn << "] b1=" << b1 << ", b2="<<b2 );
+
+	double step = config.getDouble( _path + ":step", -1.0 );
+	if ( step > 0.0 && y1 != -999 && y2 != -999 ){
+		for (double y = y1; y <= y2; y += step ){
+			config.set( _path + ":step", "" ); // prevent inf recursion
+			config.set( _path +":save_as", nn + "_" + dtes( y, "p" ) + "_" + dtes( y + step, "p" ) );
+			config.set( _path + ":y1", dts( y ) );
+			config.set( _path + ":y2", dts( y + step ) );
+
+			makeProjectionX( _path );
+		}
+		return;
+	} 
 
 	TH1 * hOther = ((TH2*)h)->ProjectionX( nn.c_str(), b1, b2 );
 	h = hOther;
@@ -1088,4 +1150,91 @@ void VegaXmlPlotter::drawCanvas( string _path ){
 	xcanvas.getCanvas()->Update();
 
 	makeExports( _path, xcanvas.getCanvas() );
+}
+
+
+map<string, TObject*> VegaXmlPlotter::dirMap( TDirectory *dir, string prefix, bool dive ) {
+	DSCOPE();
+
+	map<string, TObject*> mp;
+	
+	if ( nullptr == dir ) return mp;
+	
+	TList* list = dir->GetListOfKeys() ;
+	if ( !list ) return mp;
+
+	TIter next(list) ;
+	TKey* key ;
+	TObject* obj;
+	while ( key = (TKey*)next() ) {
+		obj = key->ReadObj() ;
+		string key = prefix + obj->GetName();
+		mp[ key ] = obj;
+		if ( dive && 0 == strcmp( "TDirectoryFile", obj->ClassName() ) ){
+			auto m = dirMap( (TDirectory*)obj, key + "/" );
+			mp.insert( m.begin(), m.end() );
+		}
+	}
+	return mp;
+}
+
+bool VegaXmlPlotter::typeMatch( TObject *obj, string type ){
+	if ( nullptr == obj ) return false;
+	if ( "" == type ) return true;
+	string objType = obj->ClassName();
+	if ( objType.substr( 0, type.length() ) == type ) return true;
+	return false;
+}
+
+vector<string> VegaXmlPlotter::glob( string query ){
+	DSCOPE();
+	vector<string> names;
+	
+	// allow prefix of type
+	//example "TH1:test*" will glob all names like test* that are TH1 (TH1D, TH1F etc)
+	size_t typePos = query.find( ":" );
+	string type = "";
+	if ( typePos != string::npos ){
+		type = query.substr( 0, typePos);
+		query = query.substr( typePos+1 );
+		DLOG_F( INFO, "Query: %s, type: %s", query.c_str(), type.c_str() );
+	}
+
+
+	// TODO add suffix support
+	size_t pos = query.find( "*" );
+
+	if ( pos != string::npos ){
+		DLOG( "WILDCARD FOUND at %lu ", pos );
+		string qc = query.substr( 0, pos );
+		DLOG( "query compare : %s ", qc.c_str()  );
+		// TODO add support for others in data file... 
+		for ( auto kv : globalHistos ){
+			string oType = kv.second->ClassName();
+			DLOG( "[%s] = %s", kv.first.c_str(), oType.c_str() );
+			if ( kv.first.substr( 0, pos ) == qc ){
+				names.push_back( kv.first );
+				DLOG( "Query MATCH: %s", kv.first.c_str() );
+			}
+		}
+
+		// now try data files:
+		for ( auto df : dataFiles ){
+			auto objs = dirMap( df.second);
+			for ( auto kv : objs ){
+				DLOG( "[%s]=%s, typeMatch=%s", kv.first.c_str(), kv.second->ClassName(), bts( typeMatch( kv.second, type ) ).c_str() );
+				if ( kv.first.substr( 0, pos ) == qc && typeMatch( kv.second, type ) ){
+					names.push_back( df.first + "/" + kv.first );
+				}
+			}
+		} // loop dataFiles
+		
+
+
+
+
+	} else {
+
+	}
+	return names;
 }
