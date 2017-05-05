@@ -169,7 +169,7 @@ void VegaXmlPlotter::makePlot( string _path, TPad * _pad ){
 	makeLegend( _path, histos );
 
 	makeExports( _path, _pad );
-	INFOC( "Finished making Plot" );
+	// INFOC( "Finished making Plot" );
 }
 
 void VegaXmlPlotter::makePlots(){
@@ -320,12 +320,12 @@ TH1* VegaXmlPlotter::makeAxes( string _path ){
 	x.linspace( config, config.oneOf( _path + ":x", _path + ":lsx" ) );
 	x.arange( config, config.oneOf( _path + ":xrange", _path + ":xr" ) );
 
-	INFOC( "Checking @" << _path + ":y" << " :: " << config.oneOf( _path + ":y", _path + ":lsy" ) );
+	LOG_F( 0, "Checking @%s:y :: %s ", _path.c_str(), config.oneOf( _path + ":y", _path + ":lsy" ).c_str() );
 	y.linspace( config, config.oneOf( _path + ":y", _path + ":lsy" ) );
 	y.arange( config, config.oneOf( _path + ":yrange", _path + ":yr" ) );
 
-	INFOC( "X : " << x.toString() << "\n\n\n" );
-	INFOC( "Y : " << y.toString() );
+	// INFOC( "X : " << x.toString() << "\n\n\n" );
+	// INFOC( "Y : " << y.toString() );
 
 	if ( x.nBins() <= 0 ) {
 		// ERRORC( "Cannot make Axes, invalid x bins" );
@@ -503,9 +503,8 @@ void VegaXmlPlotter::makeLegend( string _path, map<string, TH1*> &histos ){
 			//INFO( classname(), "Entry @" << entryPath );
 			if ( config.exists( entryPath + ":name" ) != true ) continue;
 			string name = config.getXString( entryPath + ":name" );
-			INFO( classname(), "Entry name=" << name );
+			
 			if ( histos.count( name ) <= 0 || histos[ name ] == nullptr ) {
-				ERRORC( "Cannot find " << name  );
 				continue;
 			}
 			TH1 * h = histos[ name ];
@@ -608,23 +607,16 @@ void VegaXmlPlotter::makeLine( string _path ){
 
 void VegaXmlPlotter::makeExports( string _path, TPad * _pad ){
 	DSCOPE();
-	//INFOC( "Making Export @ " << _path );
 	vector<string> exp_paths = config.childrenOf( _path, "Export", 1 );
-	
 	if ( nullptr == _pad ) {
-		INFOC( "Using Global Pad" );
 		_pad = (TPad*)gPad;
 	}
 	if ( nullptr == _pad ) return; 
 	for ( string epath : exp_paths ){
 		if ( !config.exists( epath + ":url" ) ) continue;
 		string url = config.getXString( epath + ":url" );
-		//INFOC( "Exporting gPad to " << url );
-
 		_pad->Print( url.c_str() );
-		
 	}
-	INFOC( "Done Making Exports" );
 }
 
 TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
@@ -745,7 +737,7 @@ void VegaXmlPlotter::makeTransform( string tpath ){
 	// TODO function map from string to transform??
 	for ( string tform : tform_paths ){
 		string tn = config.tagName( tform );
-		//INFOC( tn );
+		//:( tn );
 
 		if ( "ProjectionX" == tn )
 			makeProjectionX( tform );
@@ -901,14 +893,14 @@ void VegaXmlPlotter::makeProjectionY( string _path){
 	int b1 = config.getInt( _path + ":b1", 0 );
 	if ( config.exists( _path + ":x1" ) ){
 		double x1 = config.getDouble( _path + ":x1", -1 );
-		INFOC( "ProjectionY x1=" << x1 );
+		// INFOC( "ProjectionY x1=" << x1 );
 		b1 = ((TH2*)h)->GetYaxis()->FindBin( x1 );
 	}
 	
 	int b2 = config.getInt( _path + ":b2", -1 );
 	if ( config.exists( _path + ":x2" ) ){
 		double x2 = config.getDouble( _path + ":x2", -1 );
-		INFOC( "ProjectionY x2=" << x2 );
+		// INFOC( "ProjectionY x2=" << x2 );
 		b2 = ((TH2*)h)->GetYaxis()->FindBin( x2 );
 	}
 	//INFOC( "ProjectionX [" << nn << "] b1=" << b1 << ", b2="<<b2 );
@@ -1128,7 +1120,6 @@ void VegaXmlPlotter::makeDraw( string _path ){
 void VegaXmlPlotter::makeClone( string _path ){
 
 	if ( !config.exists( _path + ":save_as" ) ){
-		ERRORC( "Must provide " << quote( "save_as" ) << " attribute to save transformation" );
 		return;
 	}
 
@@ -1136,7 +1127,6 @@ void VegaXmlPlotter::makeClone( string _path ){
 	string n = config.getXString( _path + ":name" );
 	TH1 * h = findHistogram( _path, 0 );
 	if ( nullptr == h ) {
-		ERRORC( "Could not find histogram " << quote( d + "/" + n ) );
 		return;
 	}
 
