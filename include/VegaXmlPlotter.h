@@ -140,6 +140,8 @@ public:
 		return in;
 	}
 
+	void setDefaultPalette();
+
 protected:
 	
 };
