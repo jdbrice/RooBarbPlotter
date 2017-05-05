@@ -35,13 +35,13 @@
 		<Export url="h1.png" />
 	</Plot>
 
-	<Color1>1100</Color1>
-	<Color2>@Color1</Color2>
+	<Color>red</Color>
+	<Color>blue, 0.25</Color>
 
 
-	<Canvas n_coll="" n_row="1">
+	<Canvas cols="24" rows="24">
 		
-		<Pad gx="0, 6" gy="0, 6" m="0.05" name="1" > 
+		<Pad gx="0, 24" gy="0, 12" m="0.05" lm="0.1" name="1" > 
 			<!-- <Axes lsx="-50, 50, 500" lsy="1, 1e4, 100" optstat="0" axisdigits="2"/> -->
 
 			<Histo name="sample/h1" style="styles.TH1">
@@ -60,7 +60,25 @@
 			</Legend>
 
 			<TLine x1="-10" x2="10" y1="10" y2="10"/>
-			<Export url="pad_1e.pdf" />
+			<Export url="pad_1.pdf" />
+		</Pad>
+
+		<Pad gx="0, 24" gy="12, 24" m="0.05" name="2" > 
+			<Axes lsx="-50, 50, 500" lsy="1, 1e4, 100" optstat="0" axisdigits="2"/>
+
+			<Histo names="sample/h1, sample/h2" style="styles.TH1">
+				<style logy="1" draw="same" optstat="0" linecolor="#000000" fca="@Color[{i}]"/>
+			</Histo>
+
+			<Legend>
+				<Entry name="h1" title="gaussian" opt="lpe"/>
+				<Entry name="h2" title="Landau" opt="lpe" />
+				
+				<Position x1="0.15" x2="0.35" y1="0.6" y2="0.8"/>
+			</Legend>
+
+			<TLine x1="-10" x2="10" y1="10" y2="10"/>
+			<Export url="pad_2.pdf" />
 		</Pad>
 		
 		<!-- <Pad gx="0, 6" gy="3, 4" m="0" name="2"/> 
