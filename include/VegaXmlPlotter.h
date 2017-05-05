@@ -24,6 +24,7 @@ using namespace std;
 #include "TPaveStats.h"
 #include "TApplication.h"
 #include "TColor.h"
+#include "TDirectory.h"
 
 class VegaXmlPlotter : public TaskRunner
 {
@@ -32,7 +33,7 @@ public:
 	VegaXmlPlotter() {}
 	~VegaXmlPlotter() {}
 
-	virtual void initialize();
+	virtual void init();
 	virtual void make();
 
 	// shared_ptr<HistoBook> book;
@@ -77,6 +78,7 @@ public:
 	virtual void makeDivide( string _path);
 	virtual void makeRebin( string _path);
 	virtual void makeScale( string _path);
+	virtual void makeDraw( string _path);
 	virtual void makeClone( string _path );
 
 	// Canvas based form
@@ -129,6 +131,17 @@ public:
 			return _name;
 		return _data + "/" + _name;
 	}
+
+	bool typeMatch( TObject *obj, string type );
+	vector<string> glob( string query );
+	map<string, TObject*> dirMap( TDirectory *dir, string prefix ="", bool dive = true );
+
+	string underscape( string in ){
+		std::replace( in.begin(), in.end(), '/', '_' );
+		return in;
+	}
+
+	void setDefaultPalette();
 
 protected:
 	
