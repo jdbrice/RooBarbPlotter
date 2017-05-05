@@ -424,29 +424,102 @@ void VegaXmlPlotter::makeLegend( string _path, map<string, TH1*> &histos ){
 
 		RooPlotLib rpl;
 
-		TLegend * leg = new TLegend( 
-			config.getDouble( _path + ".Legend.Position:x1", 0.1 ),
-			config.getDouble( _path + ".Legend.Position:y1", 0.7 ),
-			config.getDouble( _path + ".Legend.Position:x2", 0.5 ),
-			config.getDouble( _path + ".Legend.Position:y2", 0.9 ) );
+		TLegend * leg = new TLegend();
+		// new TLegend( 
+		// 	config.getDouble( _path + ".Legend.Position:x1", 0.1 ),
+		// 	config.getDouble( _path + ".Legend.Position:y1", 0.7 ),
+		// 	config.getDouble( _path + ".Legend.Position:x2", 0.5 ),
+		// 	config.getDouble( _path + ".Legend.Position:y2", 0.9 ) );
+
 		string spos = config.getXString( _path + ".Legend.Position:pos" );
-		if ( spos == "top right" || spos == "topright" ){
-			float w = config.getFloat( _path + ".Legend.Position:w", 0.4 );
-			float h = config.getFloat( _path + ".Legend.Position:h", 0.2 );
+		float w = config.getFloat( _path + ".Legend.Position:w", 0.4 );
+		float h = config.getFloat( _path + ".Legend.Position:h", 0.2 );
 
-			float x2 = 0.9;
+		if ( spos.find("top") != string::npos ){
 			float y2 = 0.9;
-			if ( nullptr != gPad) x2 = 1.0 - gPad->GetRightMargin();
 			if ( nullptr != gPad) y2 = 1.0 - gPad->GetTopMargin();
-
-			float x1 = x2 - w;
 			float y1 = y2 - h;
-
-			leg->SetX1NDC( x1 );
-			leg->SetX2NDC( x2 );
-
-			leg->SetY1NDC( y1 );
+			LOG_F( INFO, "LEGEND Position top (h=%f) NDC y=(%f, %f)", h, y1, y2 );
 			leg->SetY2NDC( y2 );
+			leg->SetY1NDC( y1 );
+		}
+
+		if ( spos.find("right") != string::npos ){
+			float x2 = 0.9;
+			if ( nullptr != gPad) x2 = 1.0 - gPad->GetRightMargin();
+			float x1 = x2 - w;
+			LOG_F( INFO, "LEGEND Position right (w=%f) NDC x=(%f, %f)", w, x1, x2 );
+			leg->SetX2NDC( x2 );
+			leg->SetX1NDC( x1 );
+		}
+
+		if ( spos.find("left") != string::npos ){
+			float x1 = 0.1;
+			if ( nullptr != gPad) x1 = gPad->GetLeftMargin();
+			float x2 = x1 + w;
+			LOG_F( INFO, "LEGEND Position left (w=%f) NDC x=(%f, %f)", w, x1, x2 );
+			leg->SetX2NDC( x2 );
+			leg->SetX1NDC( x1 );
+		}
+
+		if ( spos.find("center") != string::npos ){
+			float x1 = 0.5 - w/2.0;
+			float x2 = 0.5 + w/2.0;
+			LOG_F( INFO, "LEGEND Position center (w=%f) NDC x=(%f, %f)", w, x1, x2 );
+			leg->SetX2NDC( x2 );
+			leg->SetX1NDC( x1 );
+		}
+
+		if ( spos.find("bottom") != string::npos ){
+			float y1 = 0.1;
+			if ( nullptr != gPad) y1 = gPad->GetBottomMargin();
+			float y2 = y1 + h;
+			LOG_F( INFO, "LEGEND Position top (h=%f) NDC y=(%f, %f)", h, y1, y2 );
+			leg->SetY2NDC( y2 );
+			leg->SetY1NDC( y1 );
+		}
+
+		if ( spos.find("middle") != string::npos ){
+			float y1 = 0.5 - h/2.0;
+			float y2 = 0.5 + h/2.0;
+			LOG_F( INFO, "LEGEND Position middle NDC y=(%f, %f)", y1, y2 );
+			leg->SetY2NDC( y2 );
+			leg->SetY1NDC( y1 );
+		}
+
+		// if ( spos == "top right" || spos == "topright" ){
+		// 	LOG_F( INFO, "LEGEND Position : top right, w=%f, h=%f", w, h  );
+
+		// 	float x2 = 0.9;
+		// 	float y2 = 0.9;
+		// 	if ( nullptr != gPad) x2 = 1.0 - gPad->GetRightMargin();
+		// 	if ( nullptr != gPad) y2 = 1.0 - gPad->GetTopMargin();
+
+		// 	float x1 = x2 - w;
+		// 	float y1 = y2 - h;
+
+		// 	LOG_F( INFO, "LEGEND Position NDC x=(%f, %f), y=(%f, %f)", x1, x2, y1, y2 );
+
+		// 	leg->SetX2NDC( x2 );
+		// 	leg->SetX1NDC( x1 );
+			
+
+		// 	leg->SetY2NDC( y2 );
+		// 	leg->SetY1NDC( y1 );
+		// }
+
+		if ( config.exists( _path +".Legend.Position:x1" ) ){
+			leg->SetX1NDC( config.getDouble( _path + ".Legend.Position:x1" ) );
+		}
+		if ( config.exists( _path +".Legend.Position:y1" ) ){
+			leg->SetY1NDC( config.getDouble( _path + ".Legend.Position:y1" ) );
+		}
+
+		if ( config.exists( _path +".Legend.Position:x2" ) ){
+			leg->SetX2NDC( config.getDouble( _path + ".Legend.Position:x2" ) );
+		}
+		if ( config.exists( _path +".Legend.Position:y2" ) ){
+			leg->SetY2NDC( config.getDouble( _path + ".Legend.Position:y2" ) );
 		}
 
 
@@ -580,10 +653,19 @@ void VegaXmlPlotter::makeExports( string _path, TPad * _pad ){
 
 TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
 	DSCOPE();
+
 	string data = config.getXString( _path + ":data" );
+	string hName = config.getXString( _path + ":name" );
+
+	if ( "" == data && hName.find( "/" ) != string::npos ){
+		data = dataOnly( hName );
+		hName = nameOnly( hName );
+	}
+
+	
 	TChain * chain = dataChains[ data ];
 	string title = config.getXString( _path + ":title" );
-	string hName = config.getXString( _path + ":name" );// +"_" + ts( iHist );
+
 	string drawCmd = config.getXString( _path + ":draw" ) + " >> " + hName;
 	string selectCmd = config.getXString( _path + ":select" );
 	
@@ -656,7 +738,7 @@ TCanvas* VegaXmlPlotter::makeCanvas( string _path ){
 void VegaXmlPlotter::makeTransforms(  ){
 	DSCOPE();
 	vector<string> tform_paths = config.childrenOf( nodePath, "Transform" );
-	LOG_F( INFO, "Found %d Transforms", tform_paths.size() );
+	LOG_F( INFO, "Found %lu Transforms", tform_paths.size() );
 	//INFOC( "Found " << tform_paths.size() << plural( tform_paths.size(), " Transform set", " Transform sets" ) );
 	
 	for ( string path : tform_paths ){
@@ -678,7 +760,7 @@ void VegaXmlPlotter::makeTransforms(  ){
 void VegaXmlPlotter::makeTransform( string tpath ){
 	DSCOPE();
 	vector<string> tform_paths = config.childrenOf( tpath );
-	LOG_F( INFO, "Found %d Transform paths", tform_paths.size() );
+	LOG_F( INFO, "Found %lu Transform paths", tform_paths.size() );
 	//INFOC( "Found " << tform_paths.size() << plural( tform_paths.size(), " Transform", " Transforms" ) );
 
 
@@ -860,7 +942,7 @@ void VegaXmlPlotter::makeMultiAdd( string _path ){
 	string nn = config.getXString( _path + ":save_as" );
 
 	// TODO allow modifier for each
-	double mod = config.getDouble( _path + ":mod", 1.0 );
+	// double mod = config.getDouble( _path + ":mod", 1.0 );
 
 	TH1 * hFirst = findHistogram( d, n[0] );
 	if ( nullptr == hFirst ){
@@ -1032,20 +1114,20 @@ void VegaXmlPlotter::makeScale( string _path ){
 
 void VegaXmlPlotter::makeDraw( string _path ){
 	DSCOPE();
-	if ( !config.exists( _path + ":save_as" ) ){
-		LOG_S( ERROR) << "Must provide " << quote( "save_as" ) << " attribute to save transformation";
-		return;
-	}
+	// if ( !config.exists( _path + ":save_as" ) ){
+	// 	LOG_S( ERROR) << "Must provide " << quote( "save_as" ) << " attribute to save transformation";
+	// 	return;
+	// }
 
 	string d = config.getXString( _path + ":data" );
-	string n = config.getXString( _path + ":name" );
+	string nn = nameOnly( config.getXString( _path + ":name" ) );
 	TH1 * h = makeHistoFromDataTree( _path, 0 ); //findHistogram( _path, 0 );
 	if ( nullptr == h ) {
-		// ERRORC( "Could not find histogram " << quote( d + "/" + n ) );
+		LOG_F( ERROR, "Could not make %s", nn.c_str() );
 		return;
 	}
 
-	string nn = config.getXString( _path + ":save_as" );
+	// string nn = config.getXString( _path + ":save_as" );
 	globalHistos[ nn ] = h;
 }
 
