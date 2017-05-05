@@ -125,6 +125,7 @@ void VegaXmlPlotter::makePlot( string _path, TPad * _pad ){
 	makeLegend( _path, histos );
 
 	makeExports( _path, _pad );
+	INFOC( "Finished making Plot" );
 }
 
 void VegaXmlPlotter::makePlots(){
@@ -255,11 +256,12 @@ TH1* VegaXmlPlotter::makeAxes( string _path ){
 	x.linspace( config, config.oneOf( _path + ":x", _path + ":lsx" ) );
 	x.arange( config, config.oneOf( _path + ":xrange", _path + ":xr" ) );
 
+	INFOC( "Checking @" << _path + ":y" << " :: " << config.oneOf( _path + ":y", _path + ":lsy" ) );
 	y.linspace( config, config.oneOf( _path + ":y", _path + ":lsy" ) );
 	y.arange( config, config.oneOf( _path + ":yrange", _path + ":yr" ) );
 
-	INFOC( "X : " << x.toString() << "\n\n\n" );
-	INFOC( "Y : " << y.toString() );
+	// INFOC( "X : " << x.toString() << "\n\n\n" );
+	// INFOC( "Y : " << y.toString() );
 
 	if ( x.nBins() <= 0 ) {
 		ERRORC( "Cannot make Axes, invalid x bins" );
@@ -412,7 +414,10 @@ void VegaXmlPlotter::makeLegend( string _path, map<string, TH1*> &histos ){
 			if ( config.exists( entryPath + ":name" ) != true ) continue;
 			string name = config.getXString( entryPath + ":name" );
 			INFO( classname(), "Entry name=" << name );
-			if ( histos.count( name ) <= 0 || histos[ name ] == nullptr ) continue;
+			if ( histos.count( name ) <= 0 || histos[ name ] == nullptr ) {
+				ERRORC( "Cannot find " << name  );
+				continue;
+			}
 			TH1 * h = histos[ name ];
 			INFO( classname(), "Entry histo=" << h );
 			string t = config.getXString(  entryPath + ":title", name );
@@ -500,7 +505,7 @@ void VegaXmlPlotter::makeLine( string _path ){
 		INFO( classname(), "TLine @ " << ltpath );
 		
 		// TODO: add string color support here
-		line->SetLineColor( config.getInt( ltpath + ":color", 1 ) );
+		line->SetLineColor( color( config.getString( ltpath + ":color" ) ) );
 		line->SetLineWidth( config.getInt( ltpath + ":width", 1 ) );
 		line->SetLineStyle( config.getInt( ltpath + ":style", 2 ) );
 
@@ -513,7 +518,10 @@ void VegaXmlPlotter::makeExports( string _path, TPad * _pad ){
 	INFOC( "Making Export @ " << _path );
 	vector<string> exp_paths = config.childrenOf( _path, "Export", 1 );
 	
-	if ( nullptr == _pad ) _pad = (TPad*)gPad;
+	if ( nullptr == _pad ) {
+		INFOC( "Using Global Pad" );
+		_pad = (TPad*)gPad;
+	}
 	if ( nullptr == _pad ) return; 
 	for ( string epath : exp_paths ){
 		if ( !config.exists( epath + ":url" ) ) continue;
@@ -523,6 +531,7 @@ void VegaXmlPlotter::makeExports( string _path, TPad * _pad ){
 		_pad->Print( url.c_str() );
 		
 	}
+	INFOC( "Done Making Exports" );
 }
 
 TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
@@ -639,6 +648,8 @@ void VegaXmlPlotter::makeTransform( string tpath ){
 			makeRebin( tform );
 		if ( "Scale" == tn )
 			makeScale( tform );
+		if ( "Clone" == tn )
+			makeClone( tform );
 		
 
 	}
@@ -760,14 +771,14 @@ void VegaXmlPlotter::makeProjectionY( string _path){
 	if ( config.exists( _path + ":x1" ) ){
 		double x1 = config.getDouble( _path + ":x1", -1 );
 		INFOC( "ProjectionY x1=" << x1 );
-		b1 = ((TH2*)h)->GetYaxis()->FindBin( x1 );
+		b1 = ((TH2*)h)->GetXaxis()->FindBin( x1 );
 	}
 	
 	int b2 = config.getInt( _path + ":b2", -1 );
 	if ( config.exists( _path + ":x2" ) ){
 		double x2 = config.getDouble( _path + ":x2", -1 );
 		INFOC( "ProjectionY x2=" << x2 );
-		b2 = ((TH2*)h)->GetYaxis()->FindBin( x2 );
+		b2 = ((TH2*)h)->GetXaxis()->FindBin( x2 );
 	}
 	INFOC( "ProjectionX [" << nn << "] b1=" << b1 << ", b2="<<b2 );
 
@@ -957,6 +968,46 @@ void VegaXmlPlotter::makeScale( string _path ){
 	string opt    = config.getXString( _path +":opt", "" );
 
 	hOther->Scale( factor, opt.c_str() );
+	globalHistos[nn] = hOther;
+}
+
+void VegaXmlPlotter::makeClone( string _path ){
+
+	if ( !config.exists( _path + ":save_as" ) ){
+		ERRORC( "Must provide " << quote( "save_as" ) << " attribute to save transformation" );
+		return;
+	}
+
+	string d = config.getXString( _path + ":data" );
+	string n = config.getXString( _path + ":name" );
+	TH1 * h = findHistogram( _path, 0 );
+	if ( nullptr == h ) {
+		ERRORC( "Could not find histogram " << quote( d + "/" + n ) );
+		return;
+	}
+
+	string nn = config.getXString( _path + ":save_as" );
+	TH1 * hOther = (TH1*)h->Clone( nn.c_str() );
+
+	// if bin ranges or axis ranges exist then clear and clone subrange
+	if ( config.exists( _path+":b1" ) || config.exists( _path+":x1" ) ){
+		hOther->Reset();
+		int b1 = config.getInt( _path + ":b1", 0 );
+		if ( config.exists( _path + ":x1" ) ){
+			double x1 = config.getDouble( _path + ":x1", -1 );
+			b1 = h->GetXaxis()->FindBin( x1 );
+		}
+		
+		int b2 = config.getInt( _path + ":b2", -1 );
+		if ( config.exists( _path + ":x2" ) ){
+			double x2 = config.getDouble( _path + ":x2", -1 );
+			b2 = h->GetXaxis()->FindBin( x2 );
+		}
+
+		// now clone the subrange
+		HistoBook::cloneBinRange( h, hOther, b1, b2 );
+	}
+
 	globalHistos[nn] = hOther;
 }
 
