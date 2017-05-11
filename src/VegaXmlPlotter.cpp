@@ -284,7 +284,8 @@ TH1* VegaXmlPlotter::findHistogram( string _path, int iHist, string _mod ){
 	// first check for a normal histogram from a root file
 	if ( dataFiles.count( data ) > 0 && dataFiles[ data ] ){
 		if ( nullptr == dataFiles[ data ]->Get( name.c_str() ) ) return nullptr;
-		TH1 * h = (TH1*)dataFiles[ data ]->Get( name.c_str() )->Clone( ("hist_" + ts(iHist)).c_str() );
+		TH1 * h = (TH1*)dataFiles[ data ]->Get( name.c_str() );
+		h = (TH1*)h->Clone( (string("hist_") + h->GetName() ).c_str() );
 		//INFO( classname(), "Found Histogram [" << name << "]= " << h << " in data file " << data );
 		return h;
 	}
@@ -429,6 +430,12 @@ TH1* VegaXmlPlotter::makeHistogram( string _path, string &fqn ){
 	}
 
 	rpl.style( h ).set( config, _path + ".style" ).draw();
+
+	if ( config.exists( _path +":after_draw" ) ){
+		string cmd = ".x " + config[_path+":after_draw"] + "( " + h->GetName() + " )";
+		LOG_F( INFO, "Executing: %s", cmd.c_str()  );
+		gROOT->ProcessLine( cmd.c_str() );
+	}
 
 	TPaveStats *st = (TPaveStats*)h->FindObject("stats");
 	if ( nullptr != st  ){
@@ -720,7 +727,6 @@ void VegaXmlPlotter::makeTransforms(  ){
 			// set the global vars for this template
 			config.set( "state", state );
 			config.set( "i", ts(i) );
-
 			makeTransform( path );
 			i++;
 		}
