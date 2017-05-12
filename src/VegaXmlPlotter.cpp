@@ -418,10 +418,10 @@ TH1* VegaXmlPlotter::makeHistogram( string _path, string &fqn ){
 
 	//INFOC( "[" << fqn << "] = " << h  );
 	
-	// if ( config.exists( _path + ".Norm" ) && config.getBool( _path + ".Norm", true ) ){
-	// 	if ( nullptr != h && h->Integral() > 0 )
-	// 		h->Scale( 1.0 / h->Integral() );
-	// }
+	if ( config.exists( _path + ".Norm" ) && config.getBool( _path + ".Norm", true ) ){
+		if ( nullptr != h && h->Integral() > 0 )
+			h->Scale( 1.0 / h->Integral() );
+	}
 
 	string styleRef = config.getXString( _path + ":style" );
 	//INFOC( "Style Ref : " << styleRef );
@@ -455,7 +455,7 @@ void VegaXmlPlotter::makeLegend( string _path, map<string, TH1*> &histos ){
 		x1 = config.getDouble( _path + ".Legend.Position:x1", 0.1 );
 		y1 = config.getDouble( _path + ".Legend.Position:y1", 0.7 );
 		x2 = config.getDouble( _path + ".Legend.Position:x2", 0.5 );
-		y2 = config.getDouble( _path + ".Legend.Position:y1", 0.9 );
+		y2 = config.getDouble( _path + ".Legend.Position:y2", 0.9 );
 
 		string spos = config.getXString( _path + ".Legend.Position:pos" );
 
