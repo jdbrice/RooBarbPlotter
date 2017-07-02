@@ -448,7 +448,7 @@ void VegaXmlPlotter::makeLegend( string _path, map<string, TH1*> &histos ){
 		x1 = config.getDouble( _path + ".Legend.Position:x1", 0.1 );
 		y1 = config.getDouble( _path + ".Legend.Position:y1", 0.7 );
 		x2 = config.getDouble( _path + ".Legend.Position:x2", 0.5 );
-		y2 = config.getDouble( _path + ".Legend.Position:y1", 0.9 );
+		y2 = config.getDouble( _path + ".Legend.Position:y2", 0.9 );
 
 		
 			// config.getDouble( _path + ".Legend.Position:x1", 0.1 ),
@@ -520,7 +520,6 @@ void VegaXmlPlotter::makeLegend( string _path, map<string, TH1*> &histos ){
 				rpl.style( h ).set( config, entryPath );
 			}
 
-
 			leg->AddEntry( h, t.c_str(), opt.c_str() );
 		}
 
@@ -533,6 +532,9 @@ void VegaXmlPlotter::makeLegend( string _path, map<string, TH1*> &histos ){
 			}
 		}
 
+		if ( config.exists( _path + ".Legend:text_size" ) ){
+			leg->SetTextSize( config.getDouble( _path + ".Legend:text_size" ) );
+		}
 		if ( config.exists( _path + ".Legend:border_size" ) ){
 			leg->SetBorderSize( config.getDouble( _path + ".Legend:border_size" ) );
 		}
