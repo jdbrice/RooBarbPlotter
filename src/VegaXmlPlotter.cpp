@@ -602,6 +602,27 @@ void VegaXmlPlotter::makeLine( string _path ){
 			config.getDouble( ltpath + ":x2", 0.0 ),
 			config.getDouble( ltpath + ":y2", 0.0 ) );
 
+		if ( config.exists( ltpath + ":x" ) ){
+			vector<double> x = config.getDoubleVector( ltpath + ":x" );
+			line->SetX1( x[0] );
+			line->SetX2( x[1] );
+		}
+		if ( config.exists( ltpath + ":y" ) ){
+			vector<double> y = config.getDoubleVector( ltpath + ":y" );
+			line->SetY1( y[0] );
+			line->SetY2( y[1] );
+		}
+		if ( config.exists( ltpath + ":p1" ) ){
+			vector<double> p1 = config.getDoubleVector( ltpath + ":p1" );
+			line->SetX1( p1[0] );
+			line->SetY2( p1[1] );
+		}
+		if ( config.exists( ltpath + ":p2" ) ){
+			vector<double> p2 = config.getDoubleVector( ltpath + ":p2" );
+			line->SetX2( p2[0] );
+			line->SetY2( p2[1] );
+		}
+
 		//INFO( classname(), "TLine @ " << ltpath );
 		
 		// TODO: add string color support here
@@ -657,8 +678,16 @@ TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
 	LOG_S(INFO) << "TTree->Draw( \"" << drawCmd << "\", \"" << selectCmd << "\" )";
 	chain->Draw( drawCmd.c_str(), selectCmd.c_str() );
 
-
 	TH1 *h = (TH1*)gPad->GetPrimitive( hName.c_str() );
+
+	if ( config.exists( _path +":after_draw" ) ){
+		string cmd = ".x " + config[_path+":after_ draw"] + "( " + h->GetName() + " )";
+		LOG_F( INFO, "Executing: %s", cmd.c_str()  );
+		// gROOT->ProcessLine( cmd.c_str() );
+		gROOT->LoadMacro( config[_path+":after_draw"].c_str() );
+		gROOT->ProcessLine( "after_draw()" );
+	}	
+
 	globalHistos[ hName ] = h;
 
 	return h;
@@ -763,6 +792,8 @@ void VegaXmlPlotter::makeTransform( string tpath ){
 			makeClone( tform );
 		if ( "Draw" == tn )
 			makeDraw( tform );
+		if ( "Smooth" == tn )
+			makeSmooth( tform );
 		
 
 	}
@@ -1010,10 +1041,12 @@ void VegaXmlPlotter::makeDivide( string _path){
 
 void VegaXmlPlotter::makeRebin( string _path ){
 	DSCOPE();
+	
 	// rebins to array of bin edges
+	bool in_place = false;
 	if ( !config.exists( _path + ":save_as" ) ){
-		// ERRORC( "Must provide " << quote( "save_as" ) << " attribute to save transformation" );
-		return;
+		LOG_F( WARNING, "Smoothing histogram in place!" );
+		in_place = true;
 	}
 
 	string d = config.getXString( _path + ":data" );
@@ -1122,6 +1155,37 @@ void VegaXmlPlotter::makeDraw( string _path ){
 	globalHistos[ nn ] = h;
 }
 
+
+void VegaXmlPlotter::makeSmooth( string _path ){
+	DSCOPE();
+
+	bool in_place = false;
+	if ( !config.exists( _path + ":save_as" ) ){
+		LOG_F( WARNING, "Smoothing histogram in place!" );
+		in_place = true;
+	}
+
+	string d = config.getString( _path + ":data" );
+	string n = config.getString( _path + ":name" );
+	TH1 * h = findHistogram( _path, 0 );
+	if ( nullptr == h ) {
+		LOG_F( ERROR, "could not find histo %s %s", d.c_str(), n.c_str() );
+		return;
+	}
+
+	int nSmooth = config.get<int>( _path + ":n", 1 );
+	
+	if ( in_place ){
+		LOG_F( INFO, "Smoothing histogram %d times", nSmooth );
+		h->Smooth( nSmooth );
+	} else {
+		string nn = config.getString( _path + ":save_as" );
+		TH1 * hOther = (TH1*)h->Clone( nn.c_str() );
+		hOther->Smooth( nSmooth );
+		LOG_F( INFO, "Smoothing histogram %s %d times", nn.c_str(), nSmooth );
+		globalHistos[nn] = hOther;
+	}
+}
 
 
 
