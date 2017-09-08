@@ -12,6 +12,8 @@
 #define LOGURU_IMPLEMENTATION 1
 #include "loguru.h"
 
+#include <thread>
+
 // #define VEGADEBUG 1
 
 
@@ -136,6 +138,8 @@ void VegaXmlPlotter::makePlotTemplates(){
 		if ( names.size() <= 1 ){
 			names = glob( config.getString( path+":names" ) );
 		}
+
+		TCanvas * c = makeCanvas( path );
 
 		int iPlot = 0;
 		for ( string name : names ){
@@ -399,7 +403,7 @@ TH1* VegaXmlPlotter::makeHistogram( string _path, string &fqn ){
 	RooPlotLib rpl;
 
 	TH1* h = findHistogram( _path, 0 );
-	//INFOC( "Got " << h );
+	LOG_F( INFO, "Found Histogram @%s", _path.c_str() );
 	
 
 	for (auto kv : globalHistos ){
@@ -416,7 +420,7 @@ TH1* VegaXmlPlotter::makeHistogram( string _path, string &fqn ){
 	
 	fqn = fullyQualifiedName( data, name );
 
-	//INFOC( "[" << fqn << "] = " << h  );
+	
 	
 	if ( config.exists( _path + ".Norm" ) && config.getBool( _path + ".Norm", true ) ){
 		if ( nullptr != h && h->Integral() > 0 )
@@ -461,28 +465,35 @@ void VegaXmlPlotter::makeLegend( string _path, map<string, TH1*> &histos ){
 
 		float w = config.getFloat( _path + ".Legend.Position:w", 0.4 );
 		float h = config.getFloat( _path + ".Legend.Position:h", 0.2 );
+		vector<float> padding = config.getFloatVector( _path + ".Legend.Position:padding" );
+		if ( padding.size() < 4 ){
+			padding.clear();
+			padding.push_back( 0 ); padding.push_back( 0 );
+			padding.push_back( 0 ); padding.push_back( 0 );
+		}
+
 
 		if ( spos.find("top") != string::npos ){
 			LOG_F( INFO, "LEGEND: TOP" );
-			y2 = 0.9;
+			y2 = 0.9 - padding[0];
 			if ( nullptr != gPad) y2 = 1.0 - gPad->GetTopMargin();
 			y1 = y2 - h;
 		}
 		if ( spos.find("right") != string::npos ){
 			LOG_F( INFO, "LEGEND: RIGHT" );
-			x2 = 0.9;
+			x2 = 0.9 - padding[1];
 			if ( nullptr != gPad) x2 = 1.0 - gPad->GetRightMargin();
 			x1 = x2 - w;
 		}
 		if ( spos.find("bottom") != string::npos ){
 			LOG_F( INFO, "LEGEND: BOTTOM" );
-			y1 = 0.1;
+			y1 = 0.1 + padding[2];
 			if ( nullptr != gPad) y1 = gPad->GetBottomMargin();
 			y2 = y1 + h;
 		}
 		if ( spos.find("left") != string::npos ){
 			LOG_F( INFO, "LEGEND: LEFT" );
-			x1 = 0.1;
+			x1 = 0.1 + padding[3];
 			if ( nullptr != gPad) x1 = gPad->GetLeftMargin();
 			x2 = x1 + w;
 		}
@@ -496,6 +507,9 @@ void VegaXmlPlotter::makeLegend( string _path, map<string, TH1*> &histos ){
 			x1 = 0.5 - w/2;
 			x2 = 0.5 + w/2;
 		}
+
+		
+		
 
 		TLegend * leg = new TLegend( x1, y1, x2, y2 );
 
@@ -747,10 +761,12 @@ void VegaXmlPlotter::makeTransforms(  ){
 	LOG_F( INFO, "Found %lu Transforms", tform_paths.size() );
 	//INFOC( "Found " << tform_paths.size() << plural( tform_paths.size(), " Transform set", " Transform sets" ) );
 	
+
 	for ( string path : tform_paths ){
 		vector<string> states = config.getStringVector( path + ":states" );
 		int i = 0;
 		if( states.size() == 0 ) states.push_back( "" );
+
 
 		for ( string state : states ){
 			// set the global vars for this template
@@ -767,7 +783,6 @@ void VegaXmlPlotter::makeTransform( string tpath ){
 	vector<string> tform_paths = config.childrenOf( tpath );
 	LOG_F( INFO, "Found %lu Transform paths", tform_paths.size() );
 	//INFOC( "Found " << tform_paths.size() << plural( tform_paths.size(), " Transform", " Transforms" ) );
-
 
 	// TODO function map from string to transform??
 	for ( string tform : tform_paths ){
