@@ -26,8 +26,14 @@ using namespace std;
 #include "TColor.h"
 #include "TDirectory.h"
 
+
+// Handlers
+#include "TFMaker.h"
+
 class VegaXmlPlotter : public TaskRunner
 {
+protected:
+	TFMaker makerTF;
 public:
 	virtual const char* classname() const { return "VegaXmlPlotter"; }
 	VegaXmlPlotter() {}
@@ -66,6 +72,9 @@ public:
 	virtual void makeExports( string _path, TPad * _pad = nullptr );
 	// virtual void makeHistoStack( map<string, TH1*> histos );
 
+	// Handlers
+	virtual void makeHandlers();
+	virtual void makeTF( string _path );
 
 	// Transforms
 	virtual void makeTransforms();

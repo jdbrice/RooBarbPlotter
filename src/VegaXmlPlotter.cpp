@@ -1,3 +1,6 @@
+#define LOGURU_IMPLEMENTATION 1
+#include "loguru.h"
+
 #include "VegaXmlPlotter.h"
 #include "ChainLoader.h"
 #include "XmlCanvas.h"
@@ -9,8 +12,7 @@
 #include "TStyle.h"
 #include "TColor.h"
 
-#define LOGURU_IMPLEMENTATION 1
-#include "loguru.h"
+
 
 #include <thread>
 
@@ -61,6 +63,25 @@ void VegaXmlPlotter::make() {
 
 	config.toXmlFile( "compiled_config.xml" );
 	config.dumpToFile( "config_dump.txt" );
+}
+
+void VegaXmlPlotter::makeHandlers(){
+
+	// vector<string> paths = config.childrenOf( nodePath );
+	// for ( string path : paths ){
+	// 	LOG_F( INFO, "%s -> %s", path.c_str(), config.tagName(path).c_str() );
+	// }
+}
+
+void VegaXmlPlotter::makeTF(string _path){
+	DSCOPE();
+	vector<string> paths = config.childrenOf( _path );
+	for ( string path : paths ){
+		string tag = config.tagName(path);
+		if ( "TF1" == tag || "XmlFunction" == tag ){
+			makerTF.make( config, path );
+		}
+	}
 }
 
 void VegaXmlPlotter::loadDataFile( string _path ){
@@ -166,6 +187,7 @@ void VegaXmlPlotter::makePlot( string _path, TPad * _pad ){
 
 	makeAxes( _path + ".Axes" );
 	map<string, TH1*> histos = makeHistograms( _path );
+	makeTF( _path );
 	// makeHistoStack( histos );
 	makeLatex(""); // global first
 	makeLatex(_path);
@@ -321,7 +343,7 @@ TH1* VegaXmlPlotter::makeAxes( string _path ){
 	HistoBins y( config, _path );
 
 	// also check for linspaces on x, y
-	//INFOC( "Checking @" << _path + ":x" << " :: " << config.oneOf( _path + ":x", _path + ":lsx" ) );
+	LOG_F( 0, "Checking @%s:x :: %s ", _path.c_str(), config.oneOf( _path + ":x", _path + ":lsx" ).c_str() );
 	x.linspace( config, config.oneOf( _path + ":x", _path + ":lsx" ) );
 	x.arange( config, config.oneOf( _path + ":xrange", _path + ":xr" ) );
 
@@ -333,11 +355,13 @@ TH1* VegaXmlPlotter::makeAxes( string _path ){
 	// INFOC( "Y : " << y.toString() );
 
 	if ( x.nBins() <= 0 ) {
+		LOG_F( ERROR, "X bins invalid, bailing out" );
 		// ERRORC( "Cannot make Axes, invalid x bins" );
 		return nullptr;
 	}
 
 	if ( y.nBins() <= 0 ) {
+		LOG_F( ERROR, "Y bins invalid, bailing out" );
 		// ERRORC( "Cannot make Axes, invalid y bins" );
 		return nullptr;
 	}
