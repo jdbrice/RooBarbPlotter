@@ -312,6 +312,9 @@ TH1* VegaXmlPlotter::findHistogram( string _path, int iHist, string _mod ){
 		if ( nullptr == dataFiles[ data ]->Get( name.c_str() ) ) return nullptr;
 		TH1 * h = (TH1*)dataFiles[ data ]->Get( name.c_str() );
 		h = (TH1*)h->Clone( (string("hist_") + h->GetName() ).c_str() );
+		if ( config.getBool( _path + ":setdir", true ) ){} 
+		else 
+			h->SetDirectory(0);
 		//INFO( classname(), "Found Histogram [" << name << "]= " << h << " in data file " << data );
 		return h;
 	}
@@ -831,6 +834,8 @@ void VegaXmlPlotter::makeTransform( string tpath ){
 			makeDraw( tform );
 		if ( "Smooth" == tn )
 			makeSmooth( tform );
+		if ( "Style" == tn )
+			transformStyle( tform );
 		
 
 	}
@@ -1234,10 +1239,13 @@ void VegaXmlPlotter::makeClone( string _path ){
 
 	string d = config.getXString( _path + ":data" );
 	string n = config.getXString( _path + ":name" );
+
 	TH1 * h = findHistogram( _path, 0 );
 	if ( nullptr == h ) {
 		return;
 	}
+
+	config.set( "uname", underscape(n) );
 
 	string nn = config.getXString( _path + ":save_as" );
 	TH1 * hOther = (TH1*)h->Clone( nn.c_str() );
@@ -1262,6 +1270,20 @@ void VegaXmlPlotter::makeClone( string _path ){
 	}
 
 	globalHistos[nn] = hOther;
+}
+
+void VegaXmlPlotter::transformStyle( string _path ){
+	DSCOPE();
+	TH1 * h = findHistogram( _path, 0 );
+	if ( nullptr == h ) {
+		return;
+	}
+
+	RooPlotLib rpl;
+
+	DLOG( "settign style from: %s, and %s", (_path + ":style").c_str(), (_path + ".style").c_str() );
+	rpl.style( h ).set( config, _path + ":style" ).set( config, _path + ".style" );
+
 }
 
 
