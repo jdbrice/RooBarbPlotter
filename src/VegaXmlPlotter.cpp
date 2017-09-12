@@ -107,12 +107,18 @@ void VegaXmlPlotter::loadChain( string _path ){
 	string treeName = config.getXString( _path + ":treeName" );
 	string url      = config.getXString( _path + ":url" );
 	int maxFiles    = config.getInt( _path + ":maxFiles", -1 );
+	int index       = config.getInt( _path + ":index", -1 );
+	int splitBy     = config.getInt( _path + ":splitBy", 50 );
 
 	dataChains[ name ] = new TChain( treeName.c_str() );
 	
-	if ( url.find( ".lis" ) != std::string::npos )
-		ChainLoader::loadList( dataChains[ name ], url, maxFiles );
-	else 
+	if ( url.find( ".lis" ) != std::string::npos ){
+		if ( index >= 0 ){
+			ChainLoader::loadListRange( dataChains[ name ], url, index, splitBy );
+			LOG_F( INFO, "Loading index=%d, splitBy=%d", index, splitBy );
+		}else 
+			ChainLoader::loadList( dataChains[ name ], url, maxFiles );
+	} else 
 		ChainLoader::load( dataChains[ name ], url, maxFiles );
 	LOG_S(INFO) << "Loaded TTree [name=" << quote(name) << "] from url: " << url;
 	int nFiles = 0;
