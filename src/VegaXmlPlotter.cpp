@@ -1,9 +1,11 @@
 #define LOGURU_IMPLEMENTATION 1
 #include "loguru.h"
 
+
 #include "VegaXmlPlotter.h"
 #include "ChainLoader.h"
 #include "XmlCanvas.h"
+#include "XmlHistogram.h"
 
 #include "TLatex.h"
 #include "THStack.h"
@@ -19,18 +21,12 @@
 // #define VEGADEBUG 1
 
 
-#if VEGADEBUG > 0
-	#define DLOG( ... ) LOG_F(INFO, __VA_ARGS__)
-	#define DSCOPE() LOG_SCOPE_FUNCTION(INFO)
-#else
-	#define DLOG( ... ) do {} while(0)
-	#define DSCOPE() do {} while(0)
-#endif
+
 
 void VegaXmlPlotter::init(){
 	DSCOPE();
-	string logfile = config[ "Logger:url" ];
-	if ( config.exists( "Logger:url" ) ){
+	string logfile = config[ "Log:url" ];
+	if ( config.exists( "Log:url" ) ){
 		loguru::add_file(logfile.c_str(), loguru::Truncate, loguru::Verbosity_MAX);
 	}
 
@@ -61,8 +57,12 @@ void VegaXmlPlotter::make() {
 
 	c->Print( "rp.pdf]" );
 
-	config.toXmlFile( "compiled_config.xml" );
-	config.dumpToFile( "config_dump.txt" );
+	if ( config.exists( "ExportConfig:url" ) ){
+		config.deleteNode( "ExportConfig" );	// not working!!!
+		config.toXmlFile( config["ExportConfig:url"] );
+	}
+	
+	// config.dumpToFile( "config_dump.txt" );
 }
 
 void VegaXmlPlotter::makeHandlers(){
@@ -86,14 +86,55 @@ void VegaXmlPlotter::makeTF(string _path){
 
 void VegaXmlPlotter::loadDataFile( string _path ){
 	DSCOPE();
-	if ( config.exists( _path + ":name" ) ){
+	if ( config.exists( _path + ":name" ) && config.exists( _path + ":url" )  ){
 		string name = config.getXString( _path+":name" );
 		string url = config.getXString( _path+":url" );
 		LOG_S( INFO ) <<  "Data name=" << name << " @ " << url ;
 		TFile * f = new TFile( url.c_str() );
 		dataFiles[ name ] = f;
+
+		if ( config.getBool( _path + ":inline", false ) )
+			inlineDataFile( _path, f );
+
+	} else if ( config.exists( _path + ":name" ) ){
+		string name = config.getXString( _path+":name" );
+		string fname = "tmp_" + name + ".root";
+		TFile *f = new TFile( fname.c_str(), "RECREATE" );
+		f->cd();
+		vector<string> paths = config.childrenOf( _path, "HistogramData" );
+		for ( string p : paths ){
+
+			TH1 * _h = XmlHistogram::fromXml( config, p );
+			_h->Write();
+			LOG_F( INFO, "Making %s = %p", p.c_str(), _h );
+			dataFiles[ name ] = f;
+		}
 	}
 } // loadDataFiles
+
+void VegaXmlPlotter::inlineDataFile( string _path, TFile *_f ){
+	LOG_F( INFO, "Inlining file @ %s", _path.c_str() );
+	auto dm = dirMap( _f );
+	string xml = XmlConfig::declarationV1;
+	xml += "\n<config>";
+	for ( auto obj : dm ){
+		TH1 * h = dynamic_cast<TH1*>( obj.second );
+		if ( nullptr != h ){
+			LOG_F( INFO, "inlining %s", obj.first.c_str() );
+			xml += "\n" + XmlHistogram::toXml( h );
+		}
+	}
+
+	xml += "\n</config>";
+
+	XmlConfig tmpcfg;
+	tmpcfg.loadXmlString( xml );
+	config.include( tmpcfg, _path, true );
+	// now remove the url attribute to make it an inlinde data file
+	config.deleteAttribute( _path + ":url" );
+
+	// LOG_F( INFO, "resulting XML to inline : \n%s", xml.c_str() );
+}
 
 int VegaXmlPlotter::numberOfData() {
 	DSCOPE();
@@ -466,7 +507,7 @@ TH1* VegaXmlPlotter::makeHistogram( string _path, string &fqn ){
 		rpl.style( h ).set( config, styleRef );
 	}
 
-	rpl.style( h ).set( config, _path + ".style" ).draw();
+	rpl.style( h ).set( config, _path ).set( config, _path + ".style" ).draw();
 
 	if ( config.exists( _path +":after_draw" ) ){
 		string cmd = ".x " + config[_path+":after_draw"] + "( " + h->GetName() + " )";
@@ -822,6 +863,8 @@ void VegaXmlPlotter::makeTransform( string tpath ){
 		string tn = config.tagName( tform );
 		//:( tn );
 
+		if ( "Projection" == tn )
+			makeProjection( tform );
 		if ( "ProjectionX" == tn )
 			makeProjectionX( tform );
 		if ( "ProjectionY" == tn )
@@ -842,8 +885,47 @@ void VegaXmlPlotter::makeTransform( string tpath ){
 			makeSmooth( tform );
 		if ( "Style" == tn )
 			transformStyle( tform );
+		if ( "SetBinError" == tn )
+			makeSetBinError( tform );
 		
 
+	}
+}
+
+void VegaXmlPlotter::makeSetBinError( string _path ){
+	DSCOPE();
+	
+	TH1 * h = findHistogram( _path, 0 );
+	TH2 *h2 = dynamic_cast<TH2*>(h);
+	TH3 *h3 = dynamic_cast<TH3*>(h);
+
+	if ( nullptr == h ) {
+		LOG_F( ERROR, "Histogram is not valid for Transform @ %s", _path.c_str() );
+		return;
+	}
+
+	float value = config.getFloat( _path + ":value", 0 );
+
+	if ( nullptr != h3  ){
+		for ( int i = 1; i <= h3->GetXaxis()->GetNbins(); i++ ){
+			for ( int j = 1; j <= h3->GetYaxis()->GetNbins(); j++ ){
+				for ( int k = 1; k <= h3->GetZaxis()->GetNbins(); k++ ){
+					int b = h3->GetBin( i, j, k );
+					h3->SetBinError( b, value );
+				}
+			}
+		}	
+	}
+	if ( nullptr != h2  ){
+		for ( int i = 1; i <= h2->GetXaxis()->GetNbins(); i++ ){
+			for ( int j = 1; j <= h2->GetYaxis()->GetNbins(); j++ ){
+				int b = h2->GetBin( i, j );
+				h2->SetBinError( b, value );
+			}
+		}	
+	}
+	for ( int i = 1; i <= h->GetXaxis()->GetNbins(); i++ ){
+		h->SetBinError( i, value );
 	}
 }
 
@@ -863,13 +945,14 @@ void VegaXmlPlotter::makeProjection( string _path ){
 	TH3 *h3 = dynamic_cast<TH3*>(h);
 	
 	if ( nullptr == h ) {
-		// ERRORC( "Could not find histogram " << quote( nn ) );
+		LOG_F( ERROR, "Histogram is not valid for Transform @ %s", _path.c_str() );
 		return;
 	}
 
 	if ( nullptr != h3 ){
-
+		LOG_F( INFO, "Projecting TH3" );
 		if ( "x" == axis || "X" == axis ){
+			LOG_F( INFO, "Projecting 1D onto %s Axis", axis.c_str() );
 			int by1 = getProjectionBin( _path, h, "y", "1",  0 );
 			int by2 = getProjectionBin( _path, h, "y", "2", -1 );
 
@@ -879,6 +962,7 @@ void VegaXmlPlotter::makeProjection( string _path ){
 			TH1 * hNew = h3->ProjectionX( nn.c_str(), by1, by2, bz1, bz2 );
 			globalHistos[ nn ] = hNew;
 		} else if ( "y" == axis || "Y" == axis ){
+			LOG_F( INFO, "Projecting 1D onto %s Axis", axis.c_str() );
 			int bx1 = getProjectionBin( _path, h, "x", "1",  0 );
 			int bx2 = getProjectionBin( _path, h, "x", "2", -1 );
 
@@ -888,15 +972,42 @@ void VegaXmlPlotter::makeProjection( string _path ){
 			TH1 * hNew = h3->ProjectionY( nn.c_str(), bx1, bx2, bz1, bz2 );
 			globalHistos[ nn ] = hNew;
 		} else if ( "z" == axis || "Z" == axis ){
+			LOG_F( INFO, "Projecting 1D onto %s Axis", axis.c_str() );
+			int bx1 = getProjectionBin( _path, h, "x", "1",  0 );
+			int bx2 = getProjectionBin( _path, h, "x", "2", -1 );
+
+			int by1 = getProjectionBin( _path, h, "y", "1",  0 );
+			int by2 = getProjectionBin( _path, h, "y", "2", -1 );
+			LOG_F( INFO, "ProjectionZ : x(%d, %d), y : (%d, %d)", bx1, bx2, by1, by2 );
+			TH1 * hNew = h3->ProjectionZ( nn.c_str(), bx1, bx2, by1, by2 );
+			globalHistos[ nn ] = hNew;
+		} else {
+			// lets do a projection in 3D
 			int bx1 = getProjectionBin( _path, h, "x", "1",  0 );
 			int bx2 = getProjectionBin( _path, h, "x", "2", -1 );
 
 			int by1 = getProjectionBin( _path, h, "y", "1",  0 );
 			int by2 = getProjectionBin( _path, h, "y", "2", -1 );
 
-			TH1 * hNew = h3->ProjectionZ( nn.c_str(), bx1, bx2, by1, by2 );
+			int bz1 = getProjectionBin( _path, h, "z", "1",  0 );
+			int bz2 = getProjectionBin( _path, h, "z", "2", -1 );
+
+			if ( axesRangeGiven( _path, "x" ) ){
+				LOG_F( INFO, "x : (%d, %d)", bx1, bx2 );
+				h3->GetXaxis()->SetRange( bx1, bx2 );
+			}
+			if ( axesRangeGiven( _path, "y" ) ){
+				LOG_F( INFO, "y : (%d, %d)", by1, by2 );
+				h3->GetYaxis()->SetRange( by1, by2 );
+			}
+			if ( axesRangeGiven( _path, "z" ) ){
+				LOG_F( INFO, "z : (%d, %d)", bz1, bz2 );
+				h3->GetZaxis()->SetRange( bz1, bz2 );
+			}
+			
+			TH1 * hNew = (TH1*)h3->Project3D( axis.c_str() );
 			globalHistos[ nn ] = hNew;
-		}
+		} // else 2D projection
 
 	} else if ( nullptr != h2 ){
 		if ( "x" == axis || "X" == axis )
@@ -960,6 +1071,8 @@ void VegaXmlPlotter::makeProjectionX( string _path){
 
 	globalHistos[ nn ] = h;
 }
+
+
 
 void VegaXmlPlotter::makeProjectionY( string _path){
 	DSCOPE();
@@ -1288,7 +1401,7 @@ void VegaXmlPlotter::transformStyle( string _path ){
 	RooPlotLib rpl;
 
 	DLOG( "settign style from: %s, and %s", (_path + ":style").c_str(), (_path + ".style").c_str() );
-	rpl.style( h ).set( config, _path + ":style" ).set( config, _path + ".style" );
+	rpl.style( h ).set( config, _path).set( config, _path + ":style" ).set( config, _path + ".style" );
 
 }
 

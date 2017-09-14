@@ -26,6 +26,13 @@ using namespace std;
 #include "TColor.h"
 #include "TDirectory.h"
 
+#if VEGADEBUG > 0
+	#define DLOG( ... ) LOG_F(INFO, __VA_ARGS__)
+	#define DSCOPE() LOG_SCOPE_FUNCTION(INFO)
+#else
+	#define DLOG( ... ) do {} while(0)
+	#define DSCOPE() do {} while(0)
+#endif
 
 // Handlers
 #include "TFMaker.h"
@@ -41,6 +48,8 @@ public:
 
 	virtual void init();
 	virtual void make();
+
+	virtual void inlineDataFile( string _path, TFile *f );
 
 	// shared_ptr<HistoBook> book;
 	map<string, TFile*> dataFiles;
@@ -91,6 +100,7 @@ public:
 	virtual void makeClone( string _path );
 	virtual void makeSmooth( string _path );
 	virtual void transformStyle( string _path );
+	virtual void makeSetBinError( string _path );
 
 	// Canvas based form
 	virtual void makeCanvases();
@@ -111,9 +121,8 @@ public:
 	}
 
 	int getProjectionBin( string _path, TH1 * _h, string _axis="x", string _n="1", int _def = -1 ){
-		
+		DLOG( "getProjectionBin( _path=%s, axis=%s, n=%s, default=%d", _path.c_str(), _axis.c_str(), _n.c_str(), _def );
 		if ( nullptr == _h ) return 1;
-
 
 		TAxis *axis = _h->GetXaxis();
 		if ( "y" == _axis || "Y" == _axis ) axis = _h->GetYaxis();
@@ -122,13 +131,32 @@ public:
 		string binAttr = _path + ":" + _axis + "b" + _n;
 		string valAttr = _path + ":" + _axis + _n;
 
+
 		int b = config.getInt( binAttr, _def );
-		
+		DLOG( "Checking for bin value @ %s = %d (default=%d)", binAttr.c_str(), b, _def );
 		if ( config.exists( valAttr ) ){
-			double v = config.getDouble( _path + ":y1", _def );
+			double v = config.getDouble( valAttr, _def );
 			b = axis->FindBin( v );
+			DLOG( "Checking for user value @ %s = %f, bin=%d (default=%d)", valAttr.c_str(), v, b, _def );
+		} else {
+			DLOG( "bin values DNE @ %s", valAttr.c_str() );
 		}
 		return b;
+	}
+
+	bool axesRangeGiven( string _path, string _axis ){
+		string n = "1";
+		string binAttr = _path + ":" + _axis + "b" + n;
+		string valAttr = _path + ":" + _axis + n;
+
+		if ( false == config.exists( binAttr ) && false == config.exists( valAttr ) )
+			return false;
+		n = "2";
+		binAttr = _path + ":" + _axis + "b" + n;
+		valAttr = _path + ":" + _axis + n;
+		if ( false == config.exists( binAttr ) && false == config.exists( valAttr ) )
+			return false;
+		return true;
 	}
 
 	string nameOnly( string fqn ){
