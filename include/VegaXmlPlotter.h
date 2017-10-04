@@ -81,6 +81,7 @@ public:
 	virtual void makeDraw( string _path);
 	virtual void makeClone( string _path );
 	virtual void makeSmooth( string _path );
+	virtual void makeCDF( string _path );
 
 	// Canvas based form
 	virtual void makeCanvases();

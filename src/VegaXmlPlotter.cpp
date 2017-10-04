@@ -794,6 +794,8 @@ void VegaXmlPlotter::makeTransform( string tpath ){
 			makeDraw( tform );
 		if ( "Smooth" == tn )
 			makeSmooth( tform );
+		if ( "CDF" == tn )
+			makeCDF( tform );
 		
 
 	}
@@ -1047,6 +1049,7 @@ void VegaXmlPlotter::makeRebin( string _path ){
 	if ( !config.exists( _path + ":save_as" ) ){
 		LOG_F( WARNING, "Smoothing histogram in place!" );
 		in_place = true;
+		return;
 	}
 
 	string d = config.getXString( _path + ":data" );
@@ -1185,6 +1188,34 @@ void VegaXmlPlotter::makeSmooth( string _path ){
 		LOG_F( INFO, "Smoothing histogram %s %d times", nn.c_str(), nSmooth );
 		globalHistos[nn] = hOther;
 	}
+}
+
+
+void VegaXmlPlotter::makeCDF( string _path ){
+	DSCOPE();
+
+	
+	if ( !config.exists( _path + ":save_as" ) ){
+		LOG_F( WARNING, "Cannot make CDF in place, abort" );
+		return;
+	}
+
+	string d = config.getString( _path + ":data" );
+	string n = config.getString( _path + ":name" );
+	TH1 * h = findHistogram( _path, 0 );
+	if ( nullptr == h ) {
+		LOG_F( ERROR, "could not find histo %s %s", d.c_str(), n.c_str() );
+		return;
+	}
+
+	bool forward = config.get<bool>( _path + ":forward", false );
+	
+	string nn = config.getString( _path + ":save_as" );
+	TH1 * hOther = (TH1*)h->Clone( nn.c_str() );
+	hOther = hOther->GetCumulative( forward, "" );
+	LOG_F( INFO, "Made CDF for histogram %s, with forward=%s", nn.c_str(), bts(forward).c_str() );
+	globalHistos[nn] = hOther;
+	
 }
 
 
