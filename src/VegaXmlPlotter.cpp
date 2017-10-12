@@ -14,7 +14,7 @@
 #include "TStyle.h"
 #include "TColor.h"
 
-
+#include "TBufferJSON.h"
 
 #include <thread>
 
@@ -550,25 +550,25 @@ void VegaXmlPlotter::makeLegend( string _path, map<string, TH1*> &histos ){
 		if ( spos.find("top") != string::npos ){
 			LOG_F( INFO, "LEGEND: TOP" );
 			y2 = 0.9 - padding[0];
-			if ( nullptr != gPad) y2 = 1.0 - gPad->GetTopMargin();
+			if ( nullptr != gPad) y2 = 1.0 - gPad->GetTopMargin() - padding[0];
 			y1 = y2 - h;
 		}
 		if ( spos.find("right") != string::npos ){
 			LOG_F( INFO, "LEGEND: RIGHT" );
 			x2 = 0.9 - padding[1];
-			if ( nullptr != gPad) x2 = 1.0 - gPad->GetRightMargin();
+			if ( nullptr != gPad) x2 = 1.0 - gPad->GetRightMargin() - padding[1];
 			x1 = x2 - w;
 		}
 		if ( spos.find("bottom") != string::npos ){
 			LOG_F( INFO, "LEGEND: BOTTOM" );
 			y1 = 0.1 + padding[2];
-			if ( nullptr != gPad) y1 = gPad->GetBottomMargin();
+			if ( nullptr != gPad) y1 = gPad->GetBottomMargin() + padding[2];
 			y2 = y1 + h;
 		}
 		if ( spos.find("left") != string::npos ){
 			LOG_F( INFO, "LEGEND: LEFT" );
 			x1 = 0.1 + padding[3];
-			if ( nullptr != gPad) x1 = gPad->GetLeftMargin();
+			if ( nullptr != gPad) x1 = gPad->GetLeftMargin()+ padding[3];
 			x2 = x1 + w;
 		}
 		if ( spos.find("vcenter") != string::npos ){
@@ -733,7 +733,16 @@ void VegaXmlPlotter::makeExports( string _path, TPad * _pad ){
 	for ( string epath : exp_paths ){
 		if ( !config.exists( epath + ":url" ) ) continue;
 		string url = config.getXString( epath + ":url" );
-		_pad->Print( url.c_str() );
+		if ( url.find( ".json" ) != string::npos ){
+			// TBufferJSON::ExportToFile( url.c_str(), _pad );
+			// LOG_F( INFO, "%s",  );
+			ofstream fout( url.c_str() );
+			fout << TBufferJSON::ConvertToJSON( _pad ).Data();
+			fout.close();
+		} else {
+			_pad->Print( url.c_str() );
+		}
+		
 	}
 }
 
