@@ -55,6 +55,7 @@ public:
 	map<string, TFile*> dataFiles;
 	map<string, TChain *> dataChains;
 	map<string, TH1 * > globalHistos;
+	map<string, TGraph * > globalGraphs;
 
 	TFile * dataOut = nullptr;
 	virtual void loadDataFile( string _path );
@@ -70,12 +71,17 @@ public:
 	virtual void makeMargins( string _path );
 	
 
+	virtual TObject* findObject( string _data );
 	virtual TH1* findHistogram( string _data, string _name );
 	virtual TH1* findHistogram( string _path, int iHist, string _mod="" );
 	virtual TH1* makeAxes(string _path);
 	virtual map<string, TH1*> makeHistograms( string _path );
 	virtual TH1* makeHistogram( string _path, string &fqn );
-	virtual void makeLegend( string _path, map<string, TH1*> &histos );
+	
+	virtual map<string, TGraph*> makeGraphs( string _path );
+	virtual TGraph* makeGraph( string _path, string &fqn );
+	
+	virtual void makeLegend( string _path, map<string, TH1*> &histos, map<string, TGraph*> &graphs, map<string, shared_ptr<TF1>> &funcs );
 	virtual void makeLatex( string _path );
 	virtual void makeLine( string _path );
 	virtual void makeExports( string _path, TPad * _pad = nullptr );
@@ -83,7 +89,7 @@ public:
 
 	// Handlers
 	virtual void makeHandlers();
-	virtual void makeTF( string _path );
+	virtual map<string, shared_ptr<TF1> > makeTF( string _path );
 
 	// Transforms
 	virtual void makeTransforms();
