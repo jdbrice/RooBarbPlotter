@@ -16,7 +16,7 @@ JDB_LIB_NAME 	= 'libRooBarb.a'
 
 cppDefines 		= {}
 cppFlags 		= ['-Wall' ]#, '-Werror']
-cxxFlags 		= ['-std=c++11' ]
+cxxFlags 		= ['-std=c++11', '-O3' ]
 cxxFlags.extend( ROOTCFLAGS )
 
 paths 			= [ '.', 			# dont really like this but ended up needing for root dict to work ok

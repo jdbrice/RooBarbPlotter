@@ -9,6 +9,7 @@ using namespace jdb;
 
 // STL
 #include <string>
+#include <vector>
 
 // ROOT
 #include "TF1.h"
@@ -17,15 +18,19 @@ using namespace jdb;
 #include "loguru.h"
 
 class TFMaker {
-    XmlFunction xf;
+    vector<XmlFunction> functions;
 public:
-    void make( XmlConfig &config, string _path ){
+    shared_ptr<TF1>  make( XmlConfig &config, string _path ){
         LOG_F( INFO, "Making TF1 at _path=%s", _path.c_str() );
-        
+        XmlFunction xf;
         RooPlotLib rpl;
         xf.set( config, _path );
         LOG_F( INFO, "TF1=%s", xf.toString().c_str() );
-        rpl.style( xf.getTF1().get() ).set( config, _path + ":style" ).set( config, _path + ".style" ).draw( "same" );
+        rpl.style( xf.getTF1().get() ).set( config, _path ).set( config, _path + ":style" ).set( config, _path + ".style" ).draw( "same" );
+
+        functions.push_back( xf );
+
+        return xf.getTF1();
     }
 protected:
 };
