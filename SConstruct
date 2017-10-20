@@ -34,7 +34,7 @@ common_env.Append(CPPFLAGS 		= cppFlags)
 common_env.Append(CXXFLAGS 		= cxxFlags)
 common_env.Append(LINKFLAGS 	= cxxFlags ) #ROOTLIBS + " " + JDB_LIB + "/lib/libJDB.a"
 common_env.Append(CPPPATH		= paths)
-common_env.Append(LIBS 			= [ "libRooBarbCore.a", "libRooBarbConfig.a", "libRooBarbTasks.a", "libRooBarbRootAna.a", "libRooBarbUnitTest.a", "libRooBarbExtra.a" ] )
+common_env.Append(LIBS 			= [ "RHTTP", "libRooBarbCore.a", "libRooBarbConfig.a", "libRooBarbTasks.a", "libRooBarbRootAna.a", "libRooBarbUnitTest.a", "libRooBarbExtra.a" ] )
 common_env.Append(LIBPATH 		= [ JDB_LIB + "/lib/" ] )
 
 common_env[ "_LIBFLAGS" ] = common_env[ "_LIBFLAGS" ] + " " + ROOTLIBS + " " 
