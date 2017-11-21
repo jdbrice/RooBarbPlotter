@@ -108,6 +108,7 @@ public:
 	virtual void makeCDF( string _path );
 	virtual void transformStyle( string _path );
 	virtual void makeSetBinError( string _path );
+	virtual void makeBinLabels( string _path );
 
 	// Canvas based form
 	virtual void makeCanvases();

@@ -84,6 +84,11 @@ map<string, shared_ptr<TF1> > VegaXmlPlotter::makeTF(string _path){
 		string tag = config.tagName(path);
 		if ( "TF1" == tag || "XmlFunction" == tag ){
 			funcs[ name ] = makerTF.make( config, path );
+
+			if (nullptr == funcs[ name ]){
+				LOG_F( INFO, "need to load TF! from file" );
+			}
+
 		}
 	}
 	return funcs;
@@ -852,6 +857,9 @@ void VegaXmlPlotter::makeLatex( string _path ){
 		if ( config.exists( ltpath + ":font" ) ){
 			TL->SetTextFont( config.getInt( ltpath + ":font" ) );
 		}
+		if ( config.exists( ltpath + ":angle" ) ){
+			TL->SetTextAngle( config.getFloat( ltpath + ":angle" ) );
+		}
 
 	}
 }
@@ -1085,6 +1093,8 @@ void VegaXmlPlotter::makeTransform( string tpath ){
 			transformStyle( tform );
 		if ( "SetBinError" == tn )
 			makeSetBinError( tform );
+		if ( "BinLabels" == tn || "SetBinLabels" == tn )
+			makeBinLabels( tform );
 		
 
 	}
@@ -1576,6 +1586,36 @@ void VegaXmlPlotter::makeCDF( string _path ){
 	LOG_F( INFO, "Made CDF for histogram %s, with forward=%s", nn.c_str(), bts(forward).c_str() );
 	globalHistos[nn] = hOther;
 	
+}
+
+
+void VegaXmlPlotter::makeBinLabels( string _path ){
+	LOG_F( INFO, "" );
+	if ( !config.exists( _path + ":save_as" ) ){
+		LOG_F( WARNING, "Cannot make CDF in place, abort" );
+		return;
+	}
+
+	string d = config.getString( _path + ":data" );
+	string n = config.getString( _path + ":name" );
+	TH1 * h = findHistogram( _path, 0 );
+	if ( nullptr == h ) {
+		LOG_F( ERROR, "could not find histo %s %s", d.c_str(), n.c_str() );
+		return;
+	}
+	
+	string nn = config.getString( _path + ":save_as" );
+	TH1 * hOther = (TH1*)h->Clone( nn.c_str() );
+
+	vector<string> labels = config.getStringVector( _path + ":labels" );
+	TAxis *axis = hOther->GetXaxis();
+
+	for ( size_t i = 0; i < labels.size(); i++ ){
+		axis->SetBinLabel( i+1, labels[i].c_str() );
+		LOG_F( INFO, "Seeting bin[%d] label to \"%s\" ", i+1, labels[i].c_str() );
+	}
+	// LOG_F( INFO, "Made CDF for histogram %s, with forward=%s", nn.c_str(), bts(forward).c_str() );
+	globalHistos[nn] = hOther;
 }
 
 

@@ -22,6 +22,9 @@ class TFMaker {
 public:
     shared_ptr<TF1>  make( XmlConfig &config, string _path ){
         LOG_F( INFO, "Making TF1 at _path=%s", _path.c_str() );
+        if ( config.exists( _path + ":formula" ) == false ){
+            return nullptr;
+        }
         XmlFunction xf;
         RooPlotLib rpl;
         xf.set( config, _path );

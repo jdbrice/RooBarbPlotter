@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 
 cd ../
-scons -j8
+scons -j8 $@
