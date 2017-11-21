@@ -849,16 +849,40 @@ void VegaXmlPlotter::makeLatex( string _path ){
 			latex.SetTextColor( kBlack );
 		}
 		
-
-		TLatex * TL = latex.DrawLatexNDC( config.getFloat( ltpath + ":x" ), 
+		TLatex * TL = nullptr;
+		if ( config.exists( ltpath + ":x" ) && config.exists( ltpath + ":y" ) ){
+			TL = latex.DrawLatexNDC( config.getFloat( ltpath + ":x" ), 
 							config.getFloat( ltpath + ":y" ), 
 							config.getXString( ltpath + ":text" ).c_str() );
+		} else if ( config.exists( ltpath + ":ux" ) && config.exists( ltpath + ":uy" ) ){
+			TL = latex.DrawLatex( config.getFloat( ltpath + ":ux" ), 
+							config.getFloat( ltpath + ":uy" ), 
+							config.getXString( ltpath + ":text" ).c_str() );
+		}
+		if ( nullptr == TL ){
+			LOG_F(ERROR, "Cannot draw latex, missing attribute. Must have pad corrds (:x,:y) or user corrds( :ux, :uy)" ); 
+		}		 
 
 		if ( config.exists( ltpath + ":font" ) ){
 			TL->SetTextFont( config.getInt( ltpath + ":font" ) );
 		}
 		if ( config.exists( ltpath + ":angle" ) ){
 			TL->SetTextAngle( config.getFloat( ltpath + ":angle" ) );
+		}
+
+		if ( config.exists( ltpath + ":align" ) ){
+			string strAlign = config.getString( ltpath + ":align" );
+			if ( "top" == strAlign || "t" == strAlign ){
+				TL->SetTextAlign( 13 );
+			} else if ( "center" == strAlign || "centered" == strAlign || "c" == strAlign ){
+				TL->SetTextAlign( 12 );
+			} else if ( "bottom" == strAlign || "b" == strAlign ){
+				TL->SetTextAlign( 11 );
+			} else if ( "special" == strAlign || "s" == strAlign ){
+				TL->SetTextAlign( 10 );
+			} else {
+				TL->SetTextAlign( config.getInt( ltpath + ":align" ) );
+			}
 		}
 
 	}
