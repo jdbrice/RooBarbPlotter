@@ -124,6 +124,15 @@ public:
 	int color( string _color ){
 		if ( _color[0] == '#' && _color.size() == 7 ){
 			return TColor::GetColor( _color.c_str() );
+		} else if ( _color[0] == '#' && _color.size() == 4 ){
+			string colstr = "#";
+			colstr += _color[1];
+			colstr += _color[1];
+			colstr += _color[2];
+			colstr += _color[2];
+			colstr += _color[3];
+			colstr += _color[3];
+			return TColor::GetColor( colstr.c_str() );
 		}
 		return atoi( _color.c_str() );
 	}
