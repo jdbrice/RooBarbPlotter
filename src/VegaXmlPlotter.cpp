@@ -15,7 +15,7 @@
 #include "TStyle.h"
 #include "TColor.h"
 
-#include "TBufferJSON.h"
+// #include "TBufferJSON.h"
 
 #include <thread>
 
@@ -370,6 +370,7 @@ TObject* VegaXmlPlotter::findObject( string _path ){
 
 TH1 *VegaXmlPlotter::findHistogram( string _data, string _name ){
 	DSCOPE();
+	DLOG( "_data=%s, _name=%s", _data.c_str(), _name.c_str() );
 
 	// TODO: add support for splitting name inot data and name by "/"
 	
@@ -398,6 +399,7 @@ TH1 *VegaXmlPlotter::findHistogram( string _data, string _name ){
 
 TH1* VegaXmlPlotter::findHistogram( string _path, int iHist, string _mod ){
 	DSCOPE();
+	DLOG( "_path=%s, iHist=%d, _mod=%s", _path.c_str(), iHist, _mod.c_str() );
 
 	string data = config.getXString( _path + ":data" + _mod, config.getXString( _path + ":data" ) );
 	string name = config.getXString( _path + ":name" + _mod, config.getXString( _path + ":name" + _mod ) );
@@ -408,17 +410,26 @@ TH1* VegaXmlPlotter::findHistogram( string _path, int iHist, string _mod ){
 		name = nameOnly( name );
 	}
 
+	DLOG( "data=%s, name=%s, dataFiles.size()=%lu", data.c_str(), name.c_str(), dataFiles.size() );
+	if ( "" == data && dataFiles.size() >= 1 ){
+		DLOG( "data was not set -> setting to %s", data.c_str()  );
+		data = dataFiles.begin()->first;
+	}
+
 	//INFO( classname(), "Looking for [" << name << "] in " << data << "=(" << dataFiles[data] <<")" );
 	// first check for a normal histogram from a root file
 	if ( dataFiles.count( data ) > 0 && dataFiles[ data ] ){
-		if ( nullptr == dataFiles[ data ]->Get( name.c_str() ) ) return nullptr;
+		
+		
 		TH1 * h = (TH1*)dataFiles[ data ]->Get( name.c_str() );
-		h = (TH1*)h->Clone( (string("hist_") + h->GetName() ).c_str() );
-		if ( config.getBool( _path + ":setdir", true ) ){} 
-		else 
-			h->SetDirectory(0);
-		//INFO( classname(), "Found Histogram [" << name << "]= " << h << " in data file " << data );
-		return h;
+		if ( nullptr != h ){
+			h = (TH1*)h->Clone( (string("hist_") + h->GetName() ).c_str() );
+			if ( config.getBool( _path + ":setdir", true ) ){} 
+			else 
+				h->SetDirectory(0);
+			//INFO( classname(), "Found Histogram [" << name << "]= " << h << " in data file " << data );
+			return h;
+		}
 	}
 
 	// look for a dataChain with the name
@@ -611,7 +622,7 @@ TH1* VegaXmlPlotter::makeHistogram( string _path, string &fqn ){
 	RooPlotLib rpl;
 
 	TH1* h = findHistogram( _path, 0 );
-	LOG_F( INFO, "Found Histogram @%s", _path.c_str() );
+	LOG_F( INFO, "Found Histogram @%s = %p", _path.c_str(), h );
 	
 
 	for (auto kv : globalHistos ){
@@ -953,9 +964,9 @@ void VegaXmlPlotter::makeExports( string _path, TPad * _pad ){
 		if ( url.find( ".json" ) != string::npos ){
 			// TBufferJSON::ExportToFile( url.c_str(), _pad );
 			// LOG_F( INFO, "%s",  );
-			ofstream fout( url.c_str() );
-			fout << TBufferJSON::ConvertToJSON( _pad ).Data();
-			fout.close();
+			// ofstream fout( url.c_str() );
+			// fout << TBufferJSON::ConvertToJSON( _pad ).Data();
+			// fout.close();
 		} else {
 			_pad->Print( url.c_str() );
 		}

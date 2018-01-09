@@ -34,7 +34,7 @@ common_env.Append(CPPFLAGS 		= cppFlags)
 common_env.Append(CXXFLAGS 		= cxxFlags)
 common_env.Append(LINKFLAGS 	= cxxFlags ) #ROOTLIBS + " " + JDB_LIB + "/lib/libJDB.a"
 common_env.Append(CPPPATH		= paths)
-common_env.Append(LIBS 			= [ "RHTTP", "libRooBarbCore.a", "libRooBarbConfig.a", "libRooBarbTasks.a", "libRooBarbRootAna.a", "libRooBarbUnitTest.a", "libRooBarbExtra.a" ] )
+common_env.Append(LIBS 			= [ "libRooBarbCore.a", "libRooBarbConfig.a", "libRooBarbTasks.a", "libRooBarbRootAna.a", "libRooBarbUnitTest.a", "libRooBarbExtra.a" ] )
 common_env.Append(LIBPATH 		= [ JDB_LIB + "/lib/" ] )
 
 common_env[ "_LIBFLAGS" ] = common_env[ "_LIBFLAGS" ] + " " + ROOTLIBS + " " 
@@ -44,9 +44,9 @@ jdb_log_level = ARGUMENTS.get( "ll", 0 )
 vega_debug = ARGUMENTS.get( "debug", 0 )
 common_env.Append(CXXFLAGS 		= "-DJDB_LOG_LEVEL=" + str(jdb_log_level) )
 
-print "DEBUG ", vega_debug
+#print "DEBUG ", vega_debug
 if int(vega_debug) > 0 :
-	print "DEBUG ENABLED"
+	#print "DEBUG ENABLED"
 	common_env.Append(CXXFLAGS 		= "-DVEGADEBUG=1" )
 
 target = common_env.Program( target='bin/rbp', source=[Glob( "src/*.cpp" )] )
