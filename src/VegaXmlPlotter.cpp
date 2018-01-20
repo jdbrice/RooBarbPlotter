@@ -30,7 +30,10 @@ void VegaXmlPlotter::init(){
 	LOG_F( INFO, "VegaXmlPlotter Starting" );
 	string logfile = config[ "Log:url" ];
 	if ( config.exists( "Log:url" ) ){
+		LOG_F( INFO, "Writing log to %s", logfile.c_str() );
 		loguru::add_file(logfile.c_str(), loguru::Truncate, loguru::Verbosity_MAX);
+	} else {
+		LOG_F( INFO, "Not writing logfile");
 	}
 
 	setDefaultPalette();
@@ -643,11 +646,14 @@ TH1* VegaXmlPlotter::makeHistogram( string _path, string &fqn ){
 	
 	fqn = fullyQualifiedName( data, name );
 
-	
+	float nI = h->Integral();
 	string normp = config.oneOf( _path + ".Norm", _path + ":norm" );
-	if ( "" != normp && config.getBool( normp, true ) ){
-		if ( nullptr != h && h->Integral() > 0 )
-			h->Scale( 1.0 / h->Integral() );
+	if ( "" != normp && nI > 0 && config.getBool( normp, true ) == true){
+		float normC = config.get<float>( normp, 0 );
+		if ( normC <= 0 )
+			normC = 1.0;
+		LOG_F( INFO, "Normalize: %s to %f / %f", h->GetName(), normC, nI );
+		h->Scale( normC / nI );
 	}
 
 	string styleRef = config.getXString( _path + ":style" );
@@ -1378,7 +1384,7 @@ void VegaXmlPlotter::makeMultiAdd( string _path ){
 	string d = config.getXString( _path + ":data" );
 	vector<string> n = config.getStringVector( _path + ":name" );
 	if ( n.size() < 1 ) {
-		// ERRORC( "No names given" );
+		n = config.getStringVector( _path + ":names" );
 	}
 
 	string nn = config.getXString( _path + ":save_as" );
@@ -1396,7 +1402,7 @@ void VegaXmlPlotter::makeMultiAdd( string _path ){
 	for ( int i = 1; i < n.size(); i++ ){
 		TH1 * h = findHistogram( d, n[i] );
 		if ( nullptr == h ) {
-			// WARNC( "Hit Null Histo : " << n[i] << " SKIPPING" );
+			LOG_F( WARNING, "Cannot add n=(%s), nullptr", n[i].c_str() );
 			continue;
 		}
 		hSum ->Add( h );
@@ -1416,6 +1422,11 @@ void VegaXmlPlotter::makeAdd( string _path){
 		makeMultiAdd( _path );
 		return;
 	}
+	if ( config.exists( _path+":names" ) && config.getStringVector( _path+":names" ).size() > 1 ){
+		makeMultiAdd( _path );
+		return;
+	}
+
 	string d = config.getXString( _path + ":data" );
 	string n = config.getXString( _path + ":name" );
 	string nn = config.getXString( _path + ":save_as" );
