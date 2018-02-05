@@ -1,12 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <root>
-	<Task name="skimmer" type="VegaXmlPlotter" config="" nodePath="" />
-	<Logger globalLogLevel="info" />
-
 	<!-- List your data sources -->
 	<!-- Can be files or trees, later access them by name -->
-	<Data name="sample" url="/Users/danielbrandenburg/bnl/local/work/RooBarbPlotter/bin/sample_data.root" />
-
+	<Data name="sample" url="sample_data.root" />
+	<Log url="log.log" />
 
 	<!-- Things out here apply to all plots unless overriden -->
 	<Margins left="0.10" right="0.12" top="0.1" bottom="0.15" />
@@ -14,26 +11,28 @@
 
 	<TCanvas width="1000" height="700" />
 
-	<Plot>
-		<Histo data="sample" name="h1" style="styles.TH1">
-			<style logy="1" optstat="0" />
-		</Histo>
+	<Loop var="x" states="1, 2, 3">
+		<Plot>
+			<Histo data="sample" name="h1" style="styles.TH1" optstat="0" />
 
-		<Histo data="sample" name="h2" style="styles.TH1">
-			<style draw="same" color="blue" fca="blue, 0.25" optstat="0"/>
-		</Histo>
-
-		<Legend title="Components">
-			<Entry name="h1" title="gaussian" opt="lpe"/>
-			<Entry name="h2" title="Landau" opt="lpe" />
+			<Histo data="sample" name="h2" style="styles.TH1" draw="same" color="blue" fca="blue, 0.25" optstat="0" logy="1"/>
 			
-			<Position x1="0.15" x2="0.35" y1="0.6" y2="0.8"/>
-		</Legend>
 
-		<TLine x1="-10" x2="10" y1="10" y2="10"/>
+			<Legend title="Components">
+				<Entry name="h1" title="gaussian" opt="lpe"/>
+				<Entry name="h2" title="Landau" opt="lpe" />
+				
+				<Position x1="0.15" x2="0.35" y1="0.6" y2="0.8"/>
+			</Legend>
 
-		<Export url="h1.png" />
-	</Plot>
+			<TLine x1="-10" x2="10" y1="50" y2="50" style="1" width="3" color="#000" />
+
+			<Export url="h1.png" />
+		</Plot>
+	</Loop>
+
+
+	
 
 	<Color>red</Color>
 	<Color>blue, 0.25</Color>

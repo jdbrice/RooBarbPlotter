@@ -41,6 +41,11 @@ class VegaXmlPlotter : public TaskRunner
 {
 protected:
 	TFMaker makerTF;
+
+	typedef void (VegaXmlPlotter::*MFP)(string);
+	std::map <string, MFP> handle_map;
+
+
 public:
 	virtual const char* classname() const { return "VegaXmlPlotter"; }
 	VegaXmlPlotter() {}
@@ -50,7 +55,19 @@ public:
 	virtual void make();
 
 	virtual void exec_node( string _path );
+	virtual void exec_Loop( string _path );
+	virtual void exec_TCanvas( string _path );
+	virtual void exec_Data( string _path );
+	virtual void exec_Plot( string _path );
 
+
+	virtual bool exec( string tag, string _path ){
+		bool e = handle_map.count( tag ) > 0;
+		if ( false == e ) return false;
+		MFP fp = handle_map[ tag ];
+		(this->*fp)( _path );
+		return true;
+	}
 
 
 

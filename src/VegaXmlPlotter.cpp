@@ -1,7 +1,6 @@
 #define LOGURU_IMPLEMENTATION 1
 #include "loguru.h"
 
-
 #include "VegaXmlPlotter.h"
 #include "ChainLoader.h"
 #include "XmlCanvas.h"
@@ -37,28 +36,134 @@ void VegaXmlPlotter::init(){
 	}
 
 	setDefaultPalette();
+
+	handle_map[ "TCanvas" ] = &VegaXmlPlotter::exec_TCanvas;
+	handle_map[ "Data" ] 	= &VegaXmlPlotter::exec_Data;
+	handle_map[ "Plot" ] 	= &VegaXmlPlotter::exec_Plot;
+	handle_map[ "Loop" ] 	= &VegaXmlPlotter::exec_Loop;
+	// handle_map.insert( std::make_pair("TCanvas", &VegaXmlPlotter::exec_TCanvas) );
+
+
 }
 
 
 
-void exec_node( string _path ){
+void VegaXmlPlotter::exec_node( string _path ){
 	DSCOPE();
+	if ( false == config.exists( _path ) )
+		return;
 
 	string tag = config.tagName( _path );
 	DLOG( "exec_node( %s ), tag = %s", _path.c_str(), tag.c_str() );
 
+	exec( tag, _path );
 
+
+}
+
+void VegaXmlPlotter::exec_TCanvas( string _path ){
+	DSCOPE();
+	int width = -1, height = -1;
+	
+	width = config.getInt( _path + ".TCanvas:width", width );
+	height = config.getInt( _path + ".TCanvas:height", height );
+
+	TCanvas * c = nullptr; 
+	if ( width != -1 && height > -1 ){
+		c = new TCanvas( "c", "c", width, height );
+		LOG_F( INFO, "TCanvas( width=%d, height=%d )", width, height );
+	}
+	else {
+		c = new TCanvas( "c" );
+		LOG_F( INFO, "TCanvas()" );
+	}
+
+	c->SetFillColor(0); 
+	c->SetFillStyle(4000);
+
+	//return c;
+}
+
+void VegaXmlPlotter::exec_Data( string _path ){
+	DSCOPE();
+	if ( config.exists( _path + ":name" ) && !config.exists( _path + ":treeName" ) ){
+		loadDataFile( _path );
+	} else if ( config.exists( _path + ":name" ) && config.exists( _path + ":treeName" )){
+		loadChain( _path );
+	}
+}
+
+void VegaXmlPlotter::exec_Loop( string _path ){
+	DSCOPE();
+	vector<string> states;
+	string var = "state";
+	string v = "%s";
+
+	if ( config.exists( _path + ":states" ) )
+		states = config.getStringVector( _path +":states" );
+
+	if ( config.exists( _path + ":var" ) )
+		var = config.getString( _path + ":var" );
+
+
+
+	for ( string state : states ){
+		DLOG( "Executing loop %s = %s", var.c_str(), state.c_str() );
+		string value = state;
+		config.set( var, value );
+		vector<string> paths = config.childrenOf( _path, 1 );
+		for ( string p : paths ){
+			// DLOG( "exec_node( %s )", p.c_str() );
+			exec_node( p );
+		}
+	} // loop on states
+}
+
+
+void VegaXmlPlotter::exec_Plot( string _path ) {
+	DSCOPE();
+	DLOG( "Makign Plot[%s] @ %s", config.getString( _path+":name", "" ).c_str(), _path.c_str() );
+
+	if ( config.exists( _path + ".Palette" ) ){
+		gStyle->SetPalette( config.getInt( _path + ".Palette" ) );
+	}
+
+	makeAxes( _path + ".Axes" );
+	map<string, TH1*> histos = makeHistograms( _path );
+	map<string, TGraph*> graphs = makeGraphs( _path );
+	map<string, shared_ptr<TF1>> funcs =  makeTF( _path );
+	// makeHistoStack( histos );
+	makeLatex(""); // global first
+	makeLatex(_path);
+	makeLine( _path );
+	makeLegend( _path, histos, graphs, funcs );
+
+	makeExports( _path, nullptr );
+	// INFOC( "Finished making Plot" );
 }
 
 
 void VegaXmlPlotter::make(){
+	DSCOPE();
 
 
-	vector<string> paths = config.childrenOf( _path );
+	// Load data first
+	vector<string> paths = config.childrenOf( "", "Data" );
 	for ( string p : paths ){
-
 		exec_node( p );
+	}
 
+	if ( paths.size() > 0 && dataFiles.size() == 0 ){
+		LOG_F( WARNING, "No valid data files found, exiting" );
+		return;
+	}
+
+	vector<string> tlp = { "TCanvas", "Plot", "Loop" };
+	paths = config.childrenOf( "", 1 );
+	for ( string p : paths ){
+		string tag = config.tagName( p );
+		if ( std::find( tlp.begin(), tlp.end(), tag ) != tlp.end() )
+			exec_node( p );
 	}
 
 
@@ -136,9 +241,18 @@ void VegaXmlPlotter::loadDataFile( string _path ){
 	if ( config.exists( _path + ":name" ) && config.exists( _path + ":url" )  ){
 		string name = config.getXString( _path+":name" );
 		string url = config.getXString( _path+":url" );
-		LOG_S( INFO ) <<  "Data name=" << name << " @ " << url ;
+
+		DLOG( "Data[%s] = %s", name.c_str(), url.c_str() );
+		// LOG_S( INFO ) <<  "Data name=" << name << " @ " << url ;
+
 		TFile * f = new TFile( url.c_str() );
+		if ( false == f->IsOpen() ){
+			LOG_F( ERROR, "%s cannot be opened", url.c_str() );
+			return;
+		}
+
 		dataFiles[ name ] = f;
+		LOG_F( INFO, "Data[%s] = %s", name.c_str(), url.c_str() );
 
 		if ( config.getBool( _path + ":inline", false ) )
 			inlineDataFile( _path, f );
