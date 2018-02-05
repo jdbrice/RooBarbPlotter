@@ -34,3 +34,5 @@
 *.png
 *.root
 *rbp
+VegaXmlPlotter.log
+.vscode/settings.json

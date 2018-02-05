@@ -1001,6 +1001,7 @@ TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
 
 	string drawCmd = config.getXString( _path + ":draw" ) + " >> " + hName;
 	string selectCmd = config.getXString( _path + ":select" );
+	string drawOpt = config.getString( _path + ":opt" );
 	
 	// if bins are given lets assume we need to make the histo first
 	if ( config.exists( _path + ":bins_x" ) ){
@@ -1014,8 +1015,8 @@ TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
 	if ( config.exists( _path + ":N" ) )
 		N = config.get<long>( _path + ":N" );
 
-	LOG_S(INFO) << "TTree->Draw( \"" << drawCmd << "\", \"" << selectCmd << "\" )";
-	chain->Draw( drawCmd.c_str(), selectCmd.c_str() );
+	LOG_S(INFO) << "TTree->Draw( \"" << drawCmd << "\", \"" << selectCmd << "\"" << "\", \"" << drawOpt << "\" )";
+	chain->Draw( drawCmd.c_str(), selectCmd.c_str(), drawOpt.c_str() );
 
 	TH1 *h = (TH1*)gPad->GetPrimitive( hName.c_str() );
 
