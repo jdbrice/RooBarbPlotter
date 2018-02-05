@@ -49,6 +49,11 @@ public:
 	virtual void init();
 	virtual void make();
 
+	virtual void exec_node( string _path );
+
+
+
+
 	virtual void inlineDataFile( string _path, TFile *f );
 
 	// shared_ptr<HistoBook> book;

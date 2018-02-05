@@ -39,40 +39,70 @@ void VegaXmlPlotter::init(){
 	setDefaultPalette();
 }
 
-void VegaXmlPlotter::make() {
+
+
+void exec_node( string _path ){
 	DSCOPE();
 
-	TCanvas *c = new TCanvas( "rp" );
-	// c->Print( "rp.pdf[" );
+	string tag = config.tagName( _path );
+	DLOG( "exec_node( %s ), tag = %s", _path.c_str(), tag.c_str() );
 
-	loadData();
-	makeOutputFile();
 
-	// string ll = config.getString( "Logger:globalLogLevel", "debug" );
-	//INFOC( "Setting ll to " << quote(ll) );
-	// Logger::setGlobalLogLevel( "none" );
-	makeTransforms();
-	makePlots();
-	makePlotTemplates();
-	makeCanvases();
-
-	if ( dataOut ){
-		LOG_F( INFO, "Writing data to %s", config.getXString( "TFile:url" ).c_str() );
-		dataOut->Write();
-		dataOut->Close();
-		LOG_F( INFO, "Write completed" );
-	}
-
-	// c->Print( "rp.pdf]" );
-
-	if ( config.exists( "ExportConfig:url" ) ){
-		LOG_F( INFO, "exporting config to %s", config["ExportConfig:url"].c_str() );
-		config.deleteNode( "ExportConfig" );	// not working!!!
-		config.toXmlFile( config["ExportConfig:url"] );
-	}
-	
-	// config.dumpToFile( "config_dump.txt" );
 }
+
+
+void VegaXmlPlotter::make(){
+
+
+	vector<string> paths = config.childrenOf( _path );
+	for ( string p : paths ){
+
+		exec_node( p );
+
+	}
+
+
+}
+
+
+
+
+
+
+// void VegaXmlPlotter::make() {
+// 	DSCOPE();
+
+// 	TCanvas *c = new TCanvas( "rp" );
+// 	// c->Print( "rp.pdf[" );
+
+// 	loadData();
+// 	makeOutputFile();
+
+// 	// string ll = config.getString( "Logger:globalLogLevel", "debug" );
+// 	//INFOC( "Setting ll to " << quote(ll) );
+// 	// Logger::setGlobalLogLevel( "none" );
+// 	makeTransforms();
+// 	makePlots();
+// 	makePlotTemplates();
+// 	makeCanvases();
+
+// 	if ( dataOut ){
+// 		LOG_F( INFO, "Writing data to %s", config.getXString( "TFile:url" ).c_str() );
+// 		dataOut->Write();
+// 		dataOut->Close();
+// 		LOG_F( INFO, "Write completed" );
+// 	}
+
+// 	// c->Print( "rp.pdf]" );
+
+// 	if ( config.exists( "ExportConfig:url" ) ){
+// 		LOG_F( INFO, "exporting config to %s", config["ExportConfig:url"].c_str() );
+// 		config.deleteNode( "ExportConfig" );	// not working!!!
+// 		config.toXmlFile( config["ExportConfig:url"] );
+// 	}
+	
+// 	// config.dumpToFile( "config_dump.txt" );
+// }
 
 void VegaXmlPlotter::makeHandlers(){
 
