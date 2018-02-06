@@ -82,6 +82,24 @@ public:
 	virtual void exec_Margins( string _path );
 	virtual void exec_TFile( string _path );
 
+	// Transforms
+	virtual void exec_Transforms( string _path );
+	virtual void exec_transform_Projection( string _path );
+	virtual void exec_transform_ProjectionX( string _path);
+	virtual void exec_transform_ProjectionY( string _path);
+	virtual void exec_transform_MultiAdd( string _path);
+	virtual void exec_transform_Add( string _path);
+	virtual void exec_transform_Divide( string _path);
+	virtual void exec_transform_Rebin( string _path);
+	virtual void exec_transform_Scale( string _path);
+	virtual void exec_transform_Draw( string _path);
+	virtual void exec_transform_Clone( string _path );
+	virtual void exec_transform_Smooth( string _path );
+	virtual void exec_transform_CDF( string _path );
+	virtual void exec_transform_Style( string _path );
+	virtual void exec_transform_SetBinError( string _path );
+	virtual void exec_transform_BinLabels( string _path );
+
 
 	virtual bool exec( string tag, string _path ){
 		bool e = handle_map.count( tag ) > 0;
@@ -107,52 +125,32 @@ public:
 	virtual void loadChain( string _path );
 	virtual void loadData();
 
-
-	// virtual void makeOutputFile();
-	// virtual void makePlots();
-	// virtual void makePlot( string _path, TPad *_pad = nullptr );
-	// virtual void makePlotTemplates();
-	// virtual void makeMargins( string _path );
-	
-
 	virtual TObject* findObject( string _data );
 	virtual TH1* findHistogram( string _data, string _name );
 	virtual TH1* findHistogram( string _path, int iHist, string _mod="" );
-	virtual TH1* makeAxes(string _path);
-	// virtual map<string, TH1*> makeHistograms( string _path );
-	virtual TH1* makeHistogram( string _path, string &fqn );
-	
-	virtual map<string, TGraph*> makeGraphs( string _path );
-	virtual TGraph* makeGraph( string _path, string &fqn );
-	
-	virtual void makeLegend( string _path, map<string, TH1*> &histos, map<string, TGraph*> &graphs, map<string, shared_ptr<TF1>> &funcs );
-	virtual void makeLatex( string _path );
-	virtual void makeLine( string _path );
-	virtual void makeExports( string _path, TPad * _pad = nullptr );
-	// virtual void makeHistoStack( map<string, TH1*> histos );
 
-	// Handlers
-	virtual void makeHandlers();
+	virtual TH1* makeHistogram( string _path, string &fqn );
+	virtual TGraph* makeGraph( string _path, string &fqn );
 	virtual map<string, shared_ptr<TF1> > makeTF( string _path );
 
 	// Transforms
-	virtual void makeTransforms();
-	virtual void makeTransform( string _tpath );
-	virtual void makeProjection( string _path );
-	virtual void makeProjectionX( string _path);
-	virtual void makeProjectionY( string _path);
-	virtual void makeMultiAdd( string _path);
-	virtual void makeAdd( string _path);
-	virtual void makeDivide( string _path);
-	virtual void makeRebin( string _path);
-	virtual void makeScale( string _path);
-	virtual void makeDraw( string _path);
-	virtual void makeClone( string _path );
-	virtual void makeSmooth( string _path );
-	virtual void makeCDF( string _path );
-	virtual void transformStyle( string _path );
-	virtual void makeSetBinError( string _path );
-	virtual void makeBinLabels( string _path );
+	// virtual void makeTransforms();
+	// virtual void makeTransform( string _tpath );
+	// virtual void makeProjection( string _path );
+	// virtual void makeProjectionX( string _path);
+	// virtual void makeProjectionY( string _path);
+	// virtual void makeMultiAdd( string _path);
+	// virtual void makeAdd( string _path);
+	// virtual void makeDivide( string _path);
+	// virtual void makeRebin( string _path);
+	// virtual void makeScale( string _path);
+	// virtual void makeDraw( string _path);
+	// virtual void makeClone( string _path );
+	// virtual void makeSmooth( string _path );
+	// virtual void makeCDF( string _path );
+	// virtual void transformStyle( string _path );
+	// virtual void makeSetBinError( string _path );
+	// virtual void makeBinLabels( string _path );
 
 	// Canvas based form
 	// virtual void makeCanvases();
@@ -163,7 +161,7 @@ public:
 
 	virtual void positionOptStats( string _path, TPaveStats * st );
 
-	virtual TCanvas* makeCanvas( string _path );
+	// virtual TCanvas* makeCanvas( string _path );
 
 	int color( string _color ){
 		if ( _color[0] == '#' && _color.size() == 7 ){
