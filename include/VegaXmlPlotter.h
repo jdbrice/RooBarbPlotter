@@ -46,6 +46,12 @@ protected:
 	std::map <string, MFP> handle_map;
 
 
+	map<string, TH1*> histos;
+	map<string, TGraph*> graphs;
+	map<string, shared_ptr<TF1>> funcs;
+	TH1C * current_frame = nullptr;
+
+
 public:
 	virtual const char* classname() const { return "VegaXmlPlotter"; }
 	VegaXmlPlotter() {}
@@ -55,10 +61,18 @@ public:
 	virtual void make();
 
 	virtual void exec_node( string _path );
+	virtual void exec_children( string _path );
+	virtual void exec_children( string _path, string tag_type );
 	virtual void exec_Loop( string _path );
 	virtual void exec_TCanvas( string _path );
 	virtual void exec_Data( string _path );
 	virtual void exec_Plot( string _path );
+	virtual void exec_Axes( string _path );
+	virtual void exec_Export( string _path );
+	virtual void exec_Histo( string _path );
+	virtual void exec_TLine( string _path );
+	virtual void exec_TLatex( string _path );
+	virtual void exec_TLegend( string _path );
 
 
 	virtual bool exec( string tag, string _path ){

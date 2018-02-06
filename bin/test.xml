@@ -13,9 +13,12 @@
 
 	<Loop var="x" states="1, 2, 3">
 		<Plot>
-			<Histo data="sample" name="h1" style="styles.TH1" optstat="0" />
+			<Axes lsx="-10, 10, 20" lsy="0.1, 5e3, 1" />
 
-			<Histo data="sample" name="h2" style="styles.TH1" draw="same" color="blue" fca="blue, 0.25" optstat="0" logy="1"/>
+			<TLine x1="-10" x2="10" y1="50" y2="50" style="1" width="3" color="#000" />
+			
+			<Histo data="sample" name="h1" style="styles.TH1" optstat="0" draw="same" logy="1" />
+			<Histo data="sample" name="h2" style="styles.TH1" draw="same" color="blue" fca="blue, 0.25" optstat="0"/>
 			
 
 			<Legend title="Components">
@@ -25,11 +28,32 @@
 				<Position x1="0.15" x2="0.35" y1="0.6" y2="0.8"/>
 			</Legend>
 
-			<TLine x1="-10" x2="10" y1="50" y2="50" style="1" width="3" color="#000" />
+			
 
-			<Export url="h1.png" />
+			<Export url="h1_{x}.png" />
 		</Plot>
 	</Loop>
+
+
+	<Plot>
+		<!-- <Axes lsx="-10, 10, 20" lsy="0.1, 100, 1" /> -->
+
+		<Histo data="sample" name="h1" style="styles.TH1" optstat="0" draw="" logy="1" />
+		
+		<Histo data="sample" name="h2" style="styles.TH1" draw="same" color="blue" fca="blue, 0.25" optstat="0"/>
+		
+
+		<Legend title="Components">
+			<Entry name="h1" title="gaussian" opt="lpe"/>
+			<Entry name="h2" title="Landau" opt="lpe" />
+			
+			<Position x1="0.15" x2="0.35" y1="0.6" y2="0.8"/>
+		</Legend>
+
+		<TLine x1="-10" x2="10" y1="50" y2="50" style="1" width="3" color="#000" />
+
+		<Export url="h2.png" />
+	</Plot>
 
 
 	
