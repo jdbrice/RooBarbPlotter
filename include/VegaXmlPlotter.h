@@ -5,6 +5,7 @@
 #include "RooPlotLib.h"
 #include "HistoBook.h"
 #include "XmlPad.h"
+#include "XmlCanvas.h"
 
 using namespace jdb;
 
@@ -51,6 +52,8 @@ protected:
 	map<string, shared_ptr<TF1>> funcs;
 	TH1C * current_frame = nullptr;
 
+	XmlCanvas * xcanvas;
+
 
 public:
 	virtual const char* classname() const { return "VegaXmlPlotter"; }
@@ -67,12 +70,17 @@ public:
 	virtual void exec_TCanvas( string _path );
 	virtual void exec_Data( string _path );
 	virtual void exec_Plot( string _path );
+	virtual void exec_Pad( string _path );
 	virtual void exec_Axes( string _path );
 	virtual void exec_Export( string _path );
+	virtual void exec_ExportConfig( string _path );
 	virtual void exec_Histo( string _path );
 	virtual void exec_TLine( string _path );
 	virtual void exec_TLatex( string _path );
 	virtual void exec_TLegend( string _path );
+	virtual void exec_Canvas( string _path );
+	virtual void exec_Margins( string _path );
+	virtual void exec_TFile( string _path );
 
 
 	virtual bool exec( string tag, string _path ){
@@ -100,18 +108,18 @@ public:
 	virtual void loadData();
 
 
-	virtual void makeOutputFile();
-	virtual void makePlots();
-	virtual void makePlot( string _path, TPad *_pad = nullptr );
-	virtual void makePlotTemplates();
-	virtual void makeMargins( string _path );
+	// virtual void makeOutputFile();
+	// virtual void makePlots();
+	// virtual void makePlot( string _path, TPad *_pad = nullptr );
+	// virtual void makePlotTemplates();
+	// virtual void makeMargins( string _path );
 	
 
 	virtual TObject* findObject( string _data );
 	virtual TH1* findHistogram( string _data, string _name );
 	virtual TH1* findHistogram( string _path, int iHist, string _mod="" );
 	virtual TH1* makeAxes(string _path);
-	virtual map<string, TH1*> makeHistograms( string _path );
+	// virtual map<string, TH1*> makeHistograms( string _path );
 	virtual TH1* makeHistogram( string _path, string &fqn );
 	
 	virtual map<string, TGraph*> makeGraphs( string _path );
@@ -147,8 +155,8 @@ public:
 	virtual void makeBinLabels( string _path );
 
 	// Canvas based form
-	virtual void makeCanvases();
-	virtual void drawCanvas( string _path );
+	// virtual void makeCanvases();
+	// virtual void drawCanvas( string _path );
 
 
 	virtual TH1* makeHistoFromDataTree( string _path, int iHist );

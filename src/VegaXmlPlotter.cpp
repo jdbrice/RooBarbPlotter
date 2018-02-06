@@ -3,7 +3,6 @@
 
 #include "VegaXmlPlotter.h"
 #include "ChainLoader.h"
-#include "XmlCanvas.h"
 #include "XmlHistogram.h"
 #include "Utils.h"
 
@@ -39,15 +38,21 @@ void VegaXmlPlotter::init(){
 
 	handle_map[ "TCanvas" ] = &VegaXmlPlotter::exec_TCanvas;
 	handle_map[ "Data" ] 	= &VegaXmlPlotter::exec_Data;
+	handle_map[ "TFile" ] 	= &VegaXmlPlotter::exec_TFile;
 	handle_map[ "Plot" ] 	= &VegaXmlPlotter::exec_Plot;
 	handle_map[ "Loop" ] 	= &VegaXmlPlotter::exec_Loop;
 	handle_map[ "Axes" ] 	= &VegaXmlPlotter::exec_Axes;
 	handle_map[ "Export" ] 	= &VegaXmlPlotter::exec_Export;
+	handle_map[ "ExportConfig" ] = &VegaXmlPlotter::exec_ExportConfig;
 	handle_map[ "Histo" ] 	= &VegaXmlPlotter::exec_Histo;
 	handle_map[ "TLine" ] 	= &VegaXmlPlotter::exec_TLine;
 	handle_map[ "TLatex" ] 	= &VegaXmlPlotter::exec_TLatex;
 	handle_map[ "TLegend" ] = &VegaXmlPlotter::exec_TLegend;
 	handle_map[ "Legend" ]  = &VegaXmlPlotter::exec_TLegend;
+
+	handle_map[ "Canvas" ]  = &VegaXmlPlotter::exec_Canvas;
+	handle_map[ "Pad" ]  = &VegaXmlPlotter::exec_Pad;
+	handle_map[ "Margins" ]  = &VegaXmlPlotter::exec_Margins;
 	// handle_map.insert( std::make_pair("TCanvas", &VegaXmlPlotter::exec_TCanvas) );
 
 
@@ -69,7 +74,7 @@ void VegaXmlPlotter::exec_node( string _path ){
 	}
 
 	exec( tag, _path );
-}
+} // exec_node
 
 void VegaXmlPlotter::exec_TCanvas( string _path ){
 	DSCOPE();
@@ -96,7 +101,7 @@ void VegaXmlPlotter::exec_TCanvas( string _path ){
 	c->Draw(); 
 	c->Show();
 	//return c;
-}
+} // exec_TCanvas
 
 void VegaXmlPlotter::exec_Data( string _path ){
 	DSCOPE();
@@ -105,6 +110,13 @@ void VegaXmlPlotter::exec_Data( string _path ){
 	} else if ( config.exists( _path + ":name" ) && config.exists( _path + ":treeName" )){
 		loadChain( _path );
 	}
+} // exec_Data
+
+void VegaXmlPlotter::exec_TFile( string _path ){
+	DSCOPE();
+	string url = config.getString( _path + ":url" );
+	LOG_F( INFO, "Opening %s in RECREATE mode", url.c_str() );
+	dataOut = new TFile( url.c_str(), "RECREATE" );
 }
 
 void VegaXmlPlotter::exec_children( string _path ){
@@ -113,7 +125,7 @@ void VegaXmlPlotter::exec_children( string _path ){
 	for ( string p : paths ){
 		exec_node( p );
 	}
-}
+} //exec_children
 
 void VegaXmlPlotter::exec_children( string _path, string tag_type ){
 	DSCOPE();
@@ -125,7 +137,7 @@ void VegaXmlPlotter::exec_children( string _path, string tag_type ){
 		if ( tag_type == tag )
 			exec_node( p );
 	}
-}
+} //exec_children
 
 void VegaXmlPlotter::exec_Loop( string _path ){
 	DSCOPE();
@@ -148,8 +160,7 @@ void VegaXmlPlotter::exec_Loop( string _path ){
 		// vector<string> paths = config.childrenOf( _path, 1 );
 		exec_children( _path );
 	} // loop on states
-}
-
+} // exec_Loop
 
 void VegaXmlPlotter::exec_Plot( string _path ) {
 	DSCOPE();
@@ -183,14 +194,12 @@ void VegaXmlPlotter::exec_Plot( string _path ) {
 	exec_children( _path, "Legend" );
 	exec_children( _path, "Export" );
 
-	// cleanup
-	if ( nullptr != current_frame ){
-		delete current_frame;
-		current_frame = nullptr;
-	}
-	
-}
-
+	// cleanup this breaks Pads and doesnt really do anything useful, so taken out for now
+	// if ( nullptr != current_frame ){
+	// 	delete current_frame;
+	// 	current_frame = nullptr;
+	// }
+} // exec_Plot
 
 void VegaXmlPlotter::exec_Axes( string _path ){
 	DSCOPE();
@@ -241,7 +250,7 @@ void VegaXmlPlotter::exec_Axes( string _path ){
 	frame->Draw("p");
 
 	current_frame = (TH1C*)frame;
-}
+} // exec_Axes
 
 void VegaXmlPlotter::exec_Export( string _path ){
 	DSCOPE();
@@ -259,8 +268,7 @@ void VegaXmlPlotter::exec_Export( string _path ){
 	} else {
 		_pad->Print( url.c_str() );
 	}
-}
-
+} // exec_Export
 
 void VegaXmlPlotter::exec_Histo( string _path ){
 	DSCOPE();
@@ -314,7 +322,7 @@ void VegaXmlPlotter::exec_Histo( string _path ){
 	histos[ fqn ] 			= h;
 
 	// return h;
-}
+} // exec_Histo
 
 void VegaXmlPlotter::exec_TLine( string _path){
 	DSCOPE();
@@ -356,7 +364,6 @@ void VegaXmlPlotter::exec_TLine( string _path){
 
 	line->Draw("same");
 } // exec_TLine
-
 
 void VegaXmlPlotter::exec_TLatex( string _path ){
 	DSCOPE();
@@ -566,8 +573,76 @@ void VegaXmlPlotter::exec_TLegend( string _path ){
 	}
 
 	leg->Draw( );
+} // exec_TLegend
+
+void VegaXmlPlotter::exec_Canvas( string _path ){
+	DSCOPE();
+
+	xcanvas = new XmlCanvas( config, _path );
+
+	exec_children( _path, "Loop" );
+	exec_children( _path, "Pad" );
+	
+	xcanvas->getCanvas()->Modified();
+	xcanvas->getCanvas()->Update();
+
+	gPad = (TPad*) xcanvas->getCanvas();
+	exec_children( _path, "Export" );
+} // exec_Canvas
+
+void VegaXmlPlotter::exec_Pad( string _path ){
+	DSCOPE();
+	if ( nullptr == xcanvas ){
+		LOG_F( ERROR, "xcanvas is NULL, cannot make Pad @ %s", _path.c_str() );
+		return;
+	}
+	string n = config.getString( _path + ":name" );
+	if ( "" == n ){
+		LOG_F( WARNING, "Pad must have valid name, skipping pad @ %s", _path.c_str() );
+		return;
+	}
+
+	XmlPad * xpad = xcanvas->activatePad( n );
+
+	// move pad to origin
+	xpad->moveToOrigin();
+	xpad->getRootPad()->Update();
+	
+	exec_Plot( _path );
+
+	xpad->reposition();
+	xpad->getRootPad()->Update();
 }
 
+void VegaXmlPlotter::exec_Margins( string _path ){
+	DSCOPE();
+	
+	float tm=-1, rm=-1, bm=-1, lm=-1;
+
+	vector<float> parts = config.getFloatVector( _path );
+	if ( parts.size() >= 4 ){
+		tm=parts[0];rm=parts[1];bm=parts[2];lm=parts[3];
+	}
+
+	tm = config.getFloat( _path + ":top"    , tm );
+	rm = config.getFloat( _path + ":right"  , rm );
+	bm = config.getFloat( _path + ":bottom" , bm );
+	lm = config.getFloat( _path + ":left"   , lm );
+
+	LOG_F( INFO, "Margins( %f, %f, %f, %f )", tm, rm, bm, lm );
+
+	if ( tm>=0 ) gPad->SetTopMargin( tm );
+	if ( rm>=0 ) gPad->SetRightMargin( rm );
+	if ( bm>=0 ) gPad->SetBottomMargin( bm );
+	if ( lm>=0 ) gPad->SetLeftMargin( lm );
+} // exec_Margins
+
+void VegaXmlPlotter::exec_ExportConfig( string _path ){
+	DSCOPE();
+	LOG_F( INFO, "exporting config to %s", config[ _path + ":url" ].c_str() );
+	config.deleteNode( _path );	// not working!!!
+	config.toXmlFile( config[_path+":url"] );
+} // ExportConfig
 
 void VegaXmlPlotter::make(){
 	DSCOPE();
@@ -585,18 +660,24 @@ void VegaXmlPlotter::make(){
 		return;
 	}
 
-	vector<string> tlp = { "TCanvas", "Plot", "Loop" };
+	// if a TFile node is given for writing output, then execute it
+	exec_node( "TFile" );
+
+	vector<string> tlp = { "TCanvas", "Plot", "Loop", "Canvas" };
 	paths = config.childrenOf( "", 1 );
 	for ( string p : paths ){
 		string tag = config.tagName( p );
 		if ( std::find( tlp.begin(), tlp.end(), tag ) != tlp.end() ){
 			exec_node( p );
-			// LOG_F(INFO,  "%s", tag.c_str() );
 		}
 	}
 
-
-}
+	if ( dataOut && dataOut->IsOpen() ){
+		dataOut->Write();
+		dataOut->Close();
+		LOG_F( INFO, "Write to %s completed", config.getString( "TFile:url" ).c_str() );
+	}
+} // make
 
 
 
@@ -779,91 +860,91 @@ void VegaXmlPlotter::loadData(){
 } // loadData
 
 
-void VegaXmlPlotter::makeOutputFile(){
-	DSCOPE();
-	if ( config.exists( "TFile:url" ) ){
-		dataOut = new TFile( config.getXString( "TFile:url" ).c_str(), "RECREATE" );
-	} else {
-		//INFO( classname(), "No output data file requested" );
-	}
-}
+// void VegaXmlPlotter::makeOutputFile(){
+// 	DSCOPE();
+// 	if ( config.exists( "TFile:url" ) ){
+// 		dataOut = new TFile( config.getXString( "TFile:url" ).c_str(), "RECREATE" );
+// 	} else {
+// 		//INFO( classname(), "No output data file requested" );
+// 	}
+// }
 
-void VegaXmlPlotter::makePlotTemplates(){
-	DSCOPE();
-	vector<string> plott_paths = config.childrenOf( nodePath, "PlotTemplate" );
-	DLOG_F( INFO, "Found %lu PlotTemplate", plott_paths.size() );
-	for ( string path : plott_paths ){
-		vector<string> names = config.getStringVector( path + ":names" );
-		if ( names.size() <= 1 ){
-			names = glob( config.getString( path+":names" ) );
-		}
+// void VegaXmlPlotter::makePlotTemplates(){
+// 	DSCOPE();
+// 	vector<string> plott_paths = config.childrenOf( nodePath, "PlotTemplate" );
+// 	DLOG_F( INFO, "Found %lu PlotTemplate", plott_paths.size() );
+// 	for ( string path : plott_paths ){
+// 		vector<string> names = config.getStringVector( path + ":names" );
+// 		if ( names.size() <= 1 ){
+// 			names = glob( config.getString( path+":names" ) );
+// 		}
 
-		TCanvas * c = makeCanvas( path );
+// 		TCanvas * c = makeCanvas( path );
 
-		int iPlot = 0;
-		for ( string name : names ){
+// 		int iPlot = 0;
+// 		for ( string name : names ){
 
-			// set the global vars for this template
-			config.set( "name", name );
-			config.set( "uname", underscape(name) );
-			config.set( "iPlot", ts(iPlot) );
+// 			// set the global vars for this template
+// 			config.set( "name", name );
+// 			config.set( "uname", underscape(name) );
+// 			config.set( "iPlot", ts(iPlot) );
 
-			makeMargins( path );
-			makePlot( path );
-			iPlot++;
-		}
-	}
-}
+// 			makeMargins( path );
+// 			makePlot( path );
+// 			iPlot++;
+// 		}
+// 	}
+// }
 
-void VegaXmlPlotter::makePlot( string _path, TPad * _pad ){
-	DSCOPE();
-	LOG_F( INFO, "Makign Plot[%s] @ %s", config.getString( _path+":name", "" ).c_str(), _path.c_str() );
+// void VegaXmlPlotter::makePlot( string _path, TPad * _pad ){
+// 	DSCOPE();
+// 	LOG_F( INFO, "Makign Plot[%s] @ %s", config.getString( _path+":name", "" ).c_str(), _path.c_str() );
 
-	/* TODO
-	 * change logic so that it renders in the order of the nodes, 
-	 * not All Hists, all graphs, all functions -> this makes it impossible to controll whats on top of what
-	 */
+// 	 TODO
+// 	 * change logic so that it renders in the order of the nodes, 
+// 	 * not All Hists, all graphs, all functions -> this makes it impossible to controll whats on top of what
+	 
 
-	if ( config.exists( _path + ".Palette" ) ){
-		gStyle->SetPalette( config.getInt( _path + ".Palette" ) );
-	}
+// 	if ( config.exists( _path + ".Palette" ) ){
+// 		gStyle->SetPalette( config.getInt( _path + ".Palette" ) );
+// 	}
 
-	makeAxes( _path + ".Axes" );
-	map<string, TH1*> histos = makeHistograms( _path );
-	map<string, TGraph*> graphs = makeGraphs( _path );
-	map<string, shared_ptr<TF1>> funcs =  makeTF( _path );
-	// makeHistoStack( histos );
-	makeLatex(""); // global first
-	makeLatex(_path);
-	makeLine( _path );
-	makeLegend( _path, histos, graphs, funcs );
+// 	makeAxes( _path + ".Axes" );
+// 	map<string, TH1*> histos = makeHistograms( _path );
+// 	map<string, TGraph*> graphs = makeGraphs( _path );
+// 	map<string, shared_ptr<TF1>> funcs =  makeTF( _path );
+// 	// makeHistoStack( histos );
+// 	makeLatex(""); // global first
+// 	makeLatex(_path);
+// 	makeLine( _path );
+// 	makeLegend( _path, histos, graphs, funcs );
 
-	makeExports( _path, _pad );
-	// INFOC( "Finished making Plot" );
-}
+// 	makeExports( _path, _pad );
+// 	// INFOC( "Finished making Plot" );
+// }
 
-void VegaXmlPlotter::makePlots(){
-	DSCOPE();
-	vector<string> plot_paths = config.childrenOf( nodePath, "Plot" );
+// void VegaXmlPlotter::makePlots(){
+// 	DSCOPE();
+// 	vector<string> plot_paths = config.childrenOf( nodePath, "Plot" );
 	
-	DLOG_S(INFO) << "Found " << plot_paths.size() << plural( plot_paths.size(), " Plot", " Plots" );
+// 	DLOG_S(INFO) << "Found " << plot_paths.size() << plural( plot_paths.size(), " Plot", " Plots" );
 
-	for ( string path : plot_paths ){
-		TCanvas * c = makeCanvas( path ); 
-		c->cd();
-		makeMargins( path );
-		makePlot( path );
-	}
-}
+// 	for ( string path : plot_paths ){
+// 		TCanvas * c = makeCanvas( path ); 
+// 		c->cd();
+// 		makeMargins( path );
+// 		makePlot( path );
+// 	}
+// }
 
-void VegaXmlPlotter::makeCanvases(){
-	DSCOPE();
-	vector<string> c_paths = config.childrenOf( nodePath, "Canvas" );
-	//INFO( classname(), "Found " << c_paths.size() << plural( c_paths.size(), " Canvas", " Canvases" ) );
-	for ( string path : c_paths ){
-		drawCanvas( path );
-	}
-}
+// void VegaXmlPlotter::makeCanvases(){
+// 	DSCOPE();
+// 	vector<string> c_paths = config.childrenOf( nodePath, "Canvas" );
+// 	//INFO( classname(), "Found " << c_paths.size() << plural( c_paths.size(), " Canvas", " Canvases" ) );
+// 	for ( string path : c_paths ){
+// 		drawCanvas( path );
+// 	}
+// }
 
 // void VegaXmlPlotter::makeHistoStack( map<string, TH1*> histos ){
 // DSCOPE();
@@ -875,39 +956,39 @@ void VegaXmlPlotter::makeCanvases(){
 // 	rpl.style( hs )
 // }
 
-void VegaXmlPlotter::makeMargins( string _path ){
-	DSCOPE();
+// void VegaXmlPlotter::makeMargins( string _path ){
+// 	DSCOPE();
 	
-	float tm=-1, rm=-1, bm=-1, lm=-1;
+// 	float tm=-1, rm=-1, bm=-1, lm=-1;
 
-	vector<float> parts = config.getFloatVector( "Margins" );
-	if ( parts.size() >= 4 ){
-		tm=parts[0];rm=parts[1];bm=parts[2];lm=parts[3];
-	}
+// 	vector<float> parts = config.getFloatVector( "Margins" );
+// 	if ( parts.size() >= 4 ){
+// 		tm=parts[0];rm=parts[1];bm=parts[2];lm=parts[3];
+// 	}
 
-	parts = config.getFloatVector( _path + ".Margins" );
-	if ( parts.size() >= 4 ){
-		tm=parts[0];rm=parts[1];bm=parts[2];lm=parts[3];
-	}
+// 	parts = config.getFloatVector( _path + ".Margins" );
+// 	if ( parts.size() >= 4 ){
+// 		tm=parts[0];rm=parts[1];bm=parts[2];lm=parts[3];
+// 	}
 
-	// Global first
+// 	// Global first
 	
-	tm = config.getFloat( "Margins:top"    , tm );
-	rm = config.getFloat( "Margins:right"  , rm );
-	bm = config.getFloat( "Margins:bottom" , bm );
-	lm = config.getFloat( "Margins:left"   , lm );
+// 	tm = config.getFloat( "Margins:top"    , tm );
+// 	rm = config.getFloat( "Margins:right"  , rm );
+// 	bm = config.getFloat( "Margins:bottom" , bm );
+// 	lm = config.getFloat( "Margins:left"   , lm );
 
-	tm = config.getFloat( _path + ".Margins:top"    , tm );
-	rm = config.getFloat( _path + ".Margins:right"  , rm );
-	bm = config.getFloat( _path + ".Margins:bottom" , bm );
-	lm = config.getFloat( _path + ".Margins:left"   , lm );
+// 	tm = config.getFloat( _path + ".Margins:top"    , tm );
+// 	rm = config.getFloat( _path + ".Margins:right"  , rm );
+// 	bm = config.getFloat( _path + ".Margins:bottom" , bm );
+// 	lm = config.getFloat( _path + ".Margins:left"   , lm );
 
-	LOG_F( INFO, "Margins( %f, %f, %f, %f )", tm, rm, bm, lm );
-	if ( tm>=0 ) gPad->SetTopMargin( tm );
-	if ( rm>=0 ) gPad->SetRightMargin( rm );
-	if ( bm>=0 ) gPad->SetBottomMargin( bm );
-	if ( lm>=0 ) gPad->SetLeftMargin( lm );
-}
+// 	LOG_F( INFO, "Margins( %f, %f, %f, %f )", tm, rm, bm, lm );
+// 	if ( tm>=0 ) gPad->SetTopMargin( tm );
+// 	if ( rm>=0 ) gPad->SetRightMargin( rm );
+// 	if ( bm>=0 ) gPad->SetBottomMargin( bm );
+// 	if ( lm>=0 ) gPad->SetLeftMargin( lm );
+// }
 
 
 TObject* VegaXmlPlotter::findObject( string _path ){
@@ -1075,56 +1156,56 @@ TH1* VegaXmlPlotter::makeAxes( string _path ){
 
 	frame->SetMarkerStyle(8);
 	frame->SetMarkerSize(0);
-	frame->Draw("p");
+	frame->DrawClone("p");
 
 	return frame;
 }
 
 
-map<string, TH1*> VegaXmlPlotter::makeHistograms( string _path ){
-	DSCOPE();
-	map<string, TH1*> histos;
-	vector<string> hist_paths = config.childrenOf( _path, "Histo" );
+// map<string, TH1*> VegaXmlPlotter::makeHistograms( string _path ){
+// 	DSCOPE();
+// 	map<string, TH1*> histos;
+// 	vector<string> hist_paths = config.childrenOf( _path, "Histo" );
 
-	LOG_F( INFO, "Found %lu Histograms", hist_paths.size() );
-	for ( string hpath : hist_paths ){
+// 	LOG_F( INFO, "Found %lu Histograms", hist_paths.size() );
+// 	for ( string hpath : hist_paths ){
 
-		if ( config.exists( hpath + ":names" ) ){
-			//INFOC( "HISTOGRAM TEMPLATE at " << hpath );
+// 		if ( config.exists( hpath + ":names" ) ){
+// 			//INFOC( "HISTOGRAM TEMPLATE at " << hpath );
 
-			vector<string> names = config.getStringVector( hpath + ":names" );
-			if ( names.size() <= 1 ){
-				names = glob( config.getString( hpath + ":names" ) );
-			}
+// 			vector<string> names = config.getStringVector( hpath + ":names" );
+// 			if ( names.size() <= 1 ){
+// 				names = glob( config.getString( hpath + ":names" ) );
+// 			}
 
-			int i = 0;
-			for ( string name : names ){
+// 			int i = 0;
+// 			for ( string name : names ){
 
-				// set the global vars for this template
-				config.set( hpath + ":name", name );
-				config.set( "i", ts(i) );
+// 				// set the global vars for this template
+// 				config.set( hpath + ":name", name );
+// 				config.set( "i", ts(i) );
 
-				//INFOC( "Histogram from template name = " << config.getXString( hpath + ":name" ) );
+// 				//INFOC( "Histogram from template name = " << config.getXString( hpath + ":name" ) );
 
-				string fqn = "";
-				TH1 * h = makeHistogram( hpath, fqn );
-				histos[ nameOnly(fqn) ] = h;
-				histos[ fqn ] = h;
-				i++;
-			}
-			continue;
-		}
+// 				string fqn = "";
+// 				TH1 * h = makeHistogram( hpath, fqn );
+// 				histos[ nameOnly(fqn) ] = h;
+// 				histos[ fqn ] = h;
+// 				i++;
+// 			}
+// 			continue;
+// 		}
 
-		string fqn = "";
-		TH1 * h = makeHistogram( hpath, fqn );
-		histos[ nameOnly(fqn) ] = h;
-		histos[ fqn ] = h;
-		//INFOC( "[" << nameOnly(fqn) << "] = " << h );
-		//INFOC( "[" << fqn << "] = " << h );
-	}
+// 		string fqn = "";
+// 		TH1 * h = makeHistogram( hpath, fqn );
+// 		histos[ nameOnly(fqn) ] = h;
+// 		histos[ fqn ] = h;
+// 		//INFOC( "[" << nameOnly(fqn) << "] = " << h );
+// 		//INFOC( "[" << fqn << "] = " << h );
+// 	}
 
-	return histos;
-}
+// 	return histos;
+// }
 
 
 map<string, TGraph*> VegaXmlPlotter::makeGraphs( string _path ){
@@ -2316,44 +2397,44 @@ void VegaXmlPlotter::transformStyle( string _path ){
 
 
 
-void VegaXmlPlotter::drawCanvas( string _path ){
-	DSCOPE();
+// void VegaXmlPlotter::drawCanvas( string _path ){
+// 	DSCOPE();
 
-	XmlCanvas xcanvas( config, _path );
+// 	XmlCanvas xcanvas( config, _path );
 	
-	vector<string> ppads = config.childrenOf( _path, "Pad" );
-	vector<string> pplots = config.childrenOf( _path, "Plots" );
-	vector<string> paths = ppads;
+// 	vector<string> ppads = config.childrenOf( _path, "Pad" );
+// 	vector<string> pplots = config.childrenOf( _path, "Plots" );
+// 	vector<string> paths = ppads;
 	
-	if ( ppads.size() <= 0 ) paths = pplots;
+// 	if ( ppads.size() <= 0 ) paths = pplots;
 
-	for ( string p : paths ){
-		string n = config.getXString( p + ":name", "" );
-		//INFOC( "Painting PAD " << n );
-		if ( "" == n ){
-			// WARNC( "Skipping pad without name" );
-			continue;
-		}
+// 	for ( string p : paths ){
+// 		string n = config.getXString( p + ":name", "" );
+// 		//INFOC( "Painting PAD " << n );
+// 		if ( "" == n ){
+// 			// WARNC( "Skipping pad without name" );
+// 			continue;
+// 		}
 
-		XmlPad * xpad = xcanvas.activatePad( n );
+// 		XmlPad * xpad = xcanvas.activatePad( n );
 
-		// move pad to origin
-		xpad->moveToOrigin();
-		xpad->getRootPad()->Update();
+// 		// move pad to origin
+// 		xpad->moveToOrigin();
+// 		xpad->getRootPad()->Update();
 		
-		makePlot( p );
+// 		makePlot( p );
 
-		xpad->reposition();
-		xpad->getRootPad()->Update();
-		// pad->Update();
-		// pad->Print( ("pad_" + n + ".pdf").c_str() );
-		// makeExports( p );
+// 		xpad->reposition();
+// 		xpad->getRootPad()->Update();
+// 		// pad->Update();
+// 		// pad->Print( ("pad_" + n + ".pdf").c_str() );
+// 		// makeExports( p );
 
-	} // loop over pads
-	xcanvas.getCanvas()->Update();
+// 	} // loop over pads
+// 	xcanvas.getCanvas()->Update();
 
-	makeExports( _path, xcanvas.getCanvas() );
-}
+// 	makeExports( _path, xcanvas.getCanvas() );
+// }
 
 
 map<string, TObject*> VegaXmlPlotter::dirMap( TDirectory *dir, string prefix, bool dive ) {
