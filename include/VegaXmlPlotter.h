@@ -177,10 +177,16 @@ public:
 	}
 
 	string nameOnly( string fqn ){
-		return fqn.substr( fqn.find( "/" ) + 1 );
+		if ( fqn.find( "/" ) != string::npos )
+			return fqn.substr( fqn.find( "/" ) + 1 );
+		else 
+			return fqn;
 	} 
 	string dataOnly( string fqn ){
-		return fqn.substr( 0, fqn.find( "/" ) );
+		if ( fqn.find( "/" ) != string::npos )
+			return fqn.substr( 0, fqn.find( "/" ) );
+		else 
+			return "";
 	} 
 	string fullyQualifiedName( string _data, string _name ){
 		if ( "" == _data )

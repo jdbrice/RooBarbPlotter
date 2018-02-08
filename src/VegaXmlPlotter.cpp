@@ -417,6 +417,12 @@ TH1* VegaXmlPlotter::findHistogram( string _path, int iHist, string _mod ){
 		name = nameOnly( name );
 	}
 
+	// finally look for histos we made and named in the ttree drawing
+	if ( globalHistos.count( name ) > 0 && globalHistos[ name ] ){
+		LOG_F( INFO, "Found histogram in mem pool [%s]", name.c_str() );
+		return globalHistos[ name ];
+	}
+
 	DLOG( "data=%s, name=%s, dataFiles.size()=%lu", data.c_str(), name.c_str(), dataFiles.size() );
 	if ( "" == data && dataFiles.size() >= 1 ){
 		data = dataFiles.begin()->first;
@@ -445,11 +451,7 @@ TH1* VegaXmlPlotter::findHistogram( string _path, int iHist, string _mod ){
 		return h;
 	}
 
-	// finally look for histos we made and named in the ttree drawing
-	if ( globalHistos.count( name ) > 0 && globalHistos[ name ] ){
-		//INFOC( "Found histogram in mem pool" );
-		return globalHistos[ name ];
-	}
+	
 
 
 	return nullptr;
@@ -995,8 +997,12 @@ TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
 		hName = nameOnly( hName );
 	}
 
-	
+	if ( dataChains.count( data ) == 0 ){
+		LOG_F( ERROR, "data file[ %s ] does not contain a TTree, maybe you forgot treeName?", data.c_str() );
+		return nullptr;
+	}
 	TChain * chain = dataChains[ data ];
+
 	string title = config.getXString( _path + ":title" );
 
 	string drawCmd = config.getXString( _path + ":draw" ) + " >> " + hName;
@@ -1283,7 +1289,6 @@ void VegaXmlPlotter::makeProjection( string _path ){
 void VegaXmlPlotter::makeProjectionX( string _path){
 	DSCOPE();
 	if ( !config.exists( _path + ":save_as" ) ){
-		// ERRORC( "Must provide " << quote( "save_as" ) << " attribute to save transformation" );
 		return;
 	}
 
@@ -1293,10 +1298,9 @@ void VegaXmlPlotter::makeProjectionX( string _path){
 	
 	TH1 * h = findHistogram( _path, 0 );
 	if ( nullptr == h ) {
-		// ERRORC( "Could not find histogram " << quote( d + "/" + n ) );
 		return;
 	}
-
+	LOG_F( INFO, "h = %p", h );
 	double y1 = -999;
 	int b1 = config.getInt( _path + ":b1", 0 );
 	if ( config.exists( _path + ":y1" ) ){
@@ -1312,10 +1316,13 @@ void VegaXmlPlotter::makeProjectionX( string _path){
 		//INFOC( "ProjectionX y2=" << y2 );
 		b2 = ((TH2*)h)->GetYaxis()->FindBin( y2 );
 	}
+
+	LOG_F( INFO, "y = (%f, %f), b = (%d, %d)", y1, y2, b1, b2 );
 	//INFOC( "ProjectionX [" << nn << "] b1=" << b1 << ", b2="<<b2 );
 
 	double step = config.getDouble( _path + ":step", -1.0 );
 	if ( step > 0.0 && y1 != -999 && y2 != -999 ){
+		LOG_F( INFO, "STEP PROJECTION X" );
 		for (double y = y1; y <= y2; y += step ){
 			config.set( _path + ":step", "" ); // prevent inf recursion
 			config.set( _path +":save_as", nn + "_" + dtes( y, "p" ) + "_" + dtes( y + step, "p" ) );
@@ -1327,10 +1334,16 @@ void VegaXmlPlotter::makeProjectionX( string _path){
 		return;
 	} 
 
+	LOG_F( INFO, "doing proj" );
+	TH2 * h2 = dynamic_cast<TH2*>( h );
+	if ( nullptr == h2 ){
+		LOG_F( ERROR, "Histogram (%s) is not 2D", n.c_str() );
+		return;
+	}
 	TH1 * hOther = ((TH2*)h)->ProjectionX( nn.c_str(), b1, b2 );
-	h = hOther;
 
-	globalHistos[ nn ] = h;
+	LOG_F( INFO, "hProjected(%s)=%p", nn.c_str(), hOther );
+	globalHistos[ nn ] = hOther;
 }
 
 
@@ -1555,27 +1568,46 @@ void VegaXmlPlotter::makeRebin( string _path ){
 
 void VegaXmlPlotter::makeScale( string _path ){
 	DSCOPE();
-
+	bool in_place = false;
 	if ( !config.exists( _path + ":save_as" ) ){
-		// ERRORC( "Must provide " << quote( "save_as" ) << " attribute to save transformation" );
-		return;
+		in_place = true;
 	}
 
 	string d = config.getXString( _path + ":data" );
 	string n = config.getXString( _path + ":name" );
+	// LOG_F( INFO, "n=%s, d=%s, nameOnly=%s, dataOnly=%s", n.c_str(), d.c_str(), nameOnly( n ).c_str(), dataOnly( n ).c_str() );
+	string fqn = fullyQualifiedName( dataOnly( n ), nameOnly( n ) );
+	if ( "" != d )
+		fqn = fullyQualifiedName( d, nameOnly( n ) );
+
 	TH1 * h = findHistogram( _path, 0 );
 	if ( nullptr == h ) {
-		// ERRORC( "Could not find histogram " << quote( d + "/" + n ) );
 		return;
 	}
-	string nn = config.getXString( _path + ":save_as" );
-	TH1 * hOther = (TH1*)h->Clone( nn.c_str() );
+
+	LOG_F( WARNING, "Scaling %s in place (overwritting)", n.c_str() );
+	TH1 * hOther = nullptr;
+	string nn = fqn;
+	if ( false == in_place ){
+		nn = config.getXString( _path + ":save_as" );
+		hOther = (TH1*)h->Clone( nn.c_str() );
+	} else {
+		hOther = h;
+	}
 
 	double factor = config.getDouble( _path + ":factor", 1.0 );
 	string opt    = config.getXString( _path +":opt", "" );
 
+	LOG_F( INFO, "h=%p, hother=%p", h, hOther );
+	if ( in_place )
+		LOG_F( INFO, "Scaling %s in place (%s) factor=%f, opt=%s", fqn.c_str(), nn.c_str(), factor, opt.c_str() );
+	else
+		LOG_F( INFO, "Scaling %s, save as %s factor=%f, opt=%s", fqn.c_str(), nn.c_str(), factor, opt.c_str() );
+
+	LOG_F( INFO, "bin107, pre = %f, %f", hOther->GetBinContent( 107 ), h->GetBinContent( 107 ) );
 	hOther->Scale( factor, opt.c_str() );
-	globalHistos[nn] = hOther;
+	LOG_F( INFO, "bin107, post = %f", hOther->GetBinContent( 107 ) );
+	globalHistos[ nn] = hOther;
 }
 
 void VegaXmlPlotter::makeDraw( string _path ){
