@@ -25,6 +25,7 @@ using namespace std;
 #include "TApplication.h"
 #include "TColor.h"
 #include "TDirectory.h"
+#include "TImage.h"
 
 #if VEGADEBUG > 0
 	#define DLOG( ... ) LOG_F(INFO, __VA_ARGS__)
@@ -80,6 +81,9 @@ public:
 	
 	virtual map<string, TGraph*> makeGraphs( string _path );
 	virtual TGraph* makeGraph( string _path, string &fqn );
+
+	virtual void makeImages( string _path );
+	virtual void makeImage( string _path, string &fqn );
 	
 	virtual void makeLegend( string _path, map<string, TH1*> &histos, map<string, TGraph*> &graphs, map<string, shared_ptr<TF1>> &funcs );
 	virtual void makeLatex( string _path );

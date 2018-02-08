@@ -259,6 +259,8 @@ void VegaXmlPlotter::makePlot( string _path, TPad * _pad ){
 	map<string, TH1*> histos = makeHistograms( _path );
 	map<string, TGraph*> graphs = makeGraphs( _path );
 	map<string, shared_ptr<TF1>> funcs =  makeTF( _path );
+
+	makeImages( _path );
 	// makeHistoStack( histos );
 	makeLatex(""); // global first
 	makeLatex(_path);
@@ -554,6 +556,70 @@ map<string, TH1*> VegaXmlPlotter::makeHistograms( string _path ){
 
 	return histos;
 }
+
+void VegaXmlPlotter::makeImages( string _path ){
+	DSCOPE();
+	vector<string> paths = config.childrenOf( _path, "Image" );
+
+	for ( string gpath : paths ){
+
+		if ( config.exists( gpath + ":names" ) ){
+			vector<string> names = config.getStringVector( gpath + ":names" );
+			if ( names.size() <= 1 ){
+				names = glob( config.getString( gpath + ":names" ) );
+			}
+
+			int i = 0;
+			for ( string name : names ){
+
+				// set the global vars for this template
+				config.set( gpath + ":name", name );
+				config.set( "i", ts(i) );
+
+				//INFOC( "Histogram from template name = " << config.getXString( gpath + ":name" ) );
+
+				string fqn = "";
+				makeImage( gpath, fqn );
+				i++;
+			}
+			continue;
+		} else {
+			string fqn = "";
+			makeImage( gpath, fqn );
+		}
+	}
+}
+
+void VegaXmlPlotter::makeImage( string _path, string &fqn ){
+	DSCOPE();
+	
+	TImage * img = TImage::Open( config.getString( _path +":name" ).c_str() );
+	if ( nullptr != img ){
+		vector<float> pos = config.getFloatVector( _path + ":pos" );
+		TVirtualPad *pPad = gPad;
+		TPad * pad = new TPad( config.getString( _path +":name" ).c_str(), "", pos[0], pos[1], pos[2], pos[3] );
+		pad->SetBorderSize( 0 );
+		pad->SetBorderMode( 0 );
+		pad->SetTopMargin(0.1);
+		pad->SetBottomMargin(0.1);
+		pad->AppendPad();
+		pad->cd();
+		pad->SetFillStyle( 4001 );
+		pad->SetFrameFillColor(0);
+		pad->SetFrameFillStyle(0);
+		pad->SetFrameBorderMode(0);
+		pad->SetFrameBorderSize(0);
+		pad->SetFillColorAlpha(0,0.0);
+		// pad->SetFillColor( kRed );
+
+		img->Draw("");
+		pPad->cd();
+	} else {
+		LOG_F( ERROR, "IMage is null" );
+	}
+
+}
+
 
 
 map<string, TGraph*> VegaXmlPlotter::makeGraphs( string _path ){
@@ -1007,6 +1073,7 @@ TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
 
 	string drawCmd = config.getXString( _path + ":draw" ) + " >> " + hName;
 	string selectCmd = config.getXString( _path + ":select" );
+	string drawOpt = config.getString( _path + ":opt" );
 	
 	// if bins are given lets assume we need to make the histo first
 	if ( config.exists( _path + ":bins_x" ) ){
@@ -1020,8 +1087,8 @@ TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
 	if ( config.exists( _path + ":N" ) )
 		N = config.get<long>( _path + ":N" );
 
-	LOG_S(INFO) << "TTree->Draw( \"" << drawCmd << "\", \"" << selectCmd << "\" )";
-	chain->Draw( drawCmd.c_str(), selectCmd.c_str() );
+	LOG_S(INFO) << "TTree->Draw( \"" << drawCmd << "\", \"" << selectCmd << "\"" << "\", \"" << drawOpt << "\" )";
+	chain->Draw( drawCmd.c_str(), selectCmd.c_str(), drawOpt.c_str() );
 
 	TH1 *h = (TH1*)gPad->GetPrimitive( hName.c_str() );
 
