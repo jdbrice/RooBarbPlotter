@@ -1087,8 +1087,8 @@ TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
 	if ( config.exists( _path + ":N" ) )
 		N = config.get<long>( _path + ":N" );
 
-	LOG_S(INFO) << "TTree->Draw( \"" << drawCmd << "\", \"" << selectCmd << "\"" << "\", \"" << drawOpt << "\" )";
-	chain->Draw( drawCmd.c_str(), selectCmd.c_str(), drawOpt.c_str() );
+	LOG_S(INFO) << "TTree->Draw( \"" << drawCmd << "\", \"" << selectCmd << "\"" << "\", \"" << drawOpt << "\"," << N << " )";
+	chain->Draw( drawCmd.c_str(), selectCmd.c_str(), drawOpt.c_str(), N );
 
 	TH1 *h = (TH1*)gPad->GetPrimitive( hName.c_str() );
 
