@@ -267,6 +267,33 @@ void VegaXmlPlotter::exec_Histo( string _path ){
 	// return h;
 } // exec_Histo
 
+void VegaXmlPlotter::exec_Graph( string _path ){
+	DSCOPE();
+	RooPlotLib rpl;
+
+	TObject * obj = findObject( _path );
+	LOG_F( INFO, "Object = %p", obj );
+	TGraph * g = dynamic_cast<TGraph*>( obj );
+
+	if ( nullptr == g ) {
+		LOG_F( ERROR, "Cannot get Graph @ %s", _path.c_str() );
+		return;
+	}
+	LOG_F( INFO, "Found Graph at %s", _path.c_str() );
+
+	// set meta info
+	config.set( "ClassName", g->ClassName() );
+
+	string name = config.getXString( _path + ":name" );
+	string data = config.getXString( _path + ":data" );
+	
+	string fqn = fullyQualifiedName( data, name );
+
+
+	rpl.style( g ).set( config, _path ).set( config, _path + ":style" ).set( config, _path + ".style" ).draw();
+
+} // exec_Graph
+
 void VegaXmlPlotter::exec_TLine( string _path){
 	DSCOPE();
 

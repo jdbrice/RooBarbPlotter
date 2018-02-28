@@ -37,11 +37,13 @@ void VegaXmlPlotter::init(){
 	handle_map[ "Axes"         ] = &VegaXmlPlotter::exec_Axes;
 	handle_map[ "Export"       ] = &VegaXmlPlotter::exec_Export;
 	handle_map[ "ExportConfig" ] = &VegaXmlPlotter::exec_ExportConfig;
-	handle_map[ "Histo"        ] = &VegaXmlPlotter::exec_Histo;
 	handle_map[ "TLine"        ] = &VegaXmlPlotter::exec_TLine;
 	handle_map[ "TLatex"       ] = &VegaXmlPlotter::exec_TLatex;
 	handle_map[ "TLegend"      ] = &VegaXmlPlotter::exec_TLegend;
 	handle_map[ "Legend"       ] = &VegaXmlPlotter::exec_TLegend;
+
+	handle_map[ "Histo"        ] = &VegaXmlPlotter::exec_Histo;
+	handle_map[ "Graph"        ] = &VegaXmlPlotter::exec_Graph;
 
 	handle_map[ "Canvas"       ] = &VegaXmlPlotter::exec_Canvas;
 	handle_map[ "Pad"          ] = &VegaXmlPlotter::exec_Pad;

@@ -75,6 +75,7 @@ public:
 	virtual void exec_Export( string _path );
 	virtual void exec_ExportConfig( string _path );
 	virtual void exec_Histo( string _path );
+	virtual void exec_Graph( string _path );
 	virtual void exec_TLine( string _path );
 	virtual void exec_TLatex( string _path );
 	virtual void exec_TLegend( string _path );
