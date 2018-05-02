@@ -48,6 +48,7 @@ void VegaXmlPlotter::init(){
 	handle_map[ "Margins"      ] = &VegaXmlPlotter::exec_Margins;
 
 	handle_map[ "Transforms"   ] = &VegaXmlPlotter::exec_Transforms;
+	handle_map[ "Transform"   ] = &VegaXmlPlotter::exec_Transforms;
 
 	handle_map[ "Projection"   ] = &VegaXmlPlotter::exec_transform_Projection;
 	handle_map[ "ProjectionX"  ] = &VegaXmlPlotter::exec_transform_ProjectionX;
@@ -82,19 +83,36 @@ void VegaXmlPlotter::exec_node( string _path ){
 	exec( tag, _path );
 } // exec_node
 
+string VegaXmlPlotter::random_string( size_t length ){
+	auto randchar = []() -> char
+	{
+		const char charset[] =
+		"0123456789"
+		"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+		"abcdefghijklmnopqrstuvwxyz";
+		const size_t max_index = (sizeof(charset) - 1);
+		return charset[ rand() % max_index ];
+	};
+	string str(length,0);
+	generate_n( str.begin(), length, randchar );
+	return str;
+}
 
 void VegaXmlPlotter::make(){
 	DSCOPE();
 
-	config.dumpToFile( "out.yaml" );
-
-	// Load data first
-	vector<string> paths = config.childrenOf( "", "Data" );
+	vector<string> paths = config.childrenOf( "", "ExportConfig" );
 	for ( string p : paths ){
 		exec_node( p );
 	}
 
-	if ( paths.size() > 0 && dataFiles.size() == 0 ){
+	// Load data first
+	paths = config.childrenOf( "", "Data" );
+	for ( string p : paths ){
+		exec_node( p );
+	}
+
+	if ( paths.size() > 0 && dataFiles.size() == 0 && dataChains.size() == 0 ){
 		LOG_F( WARNING, "No valid data files found, exiting" );
 		return;
 	}
@@ -102,7 +120,8 @@ void VegaXmlPlotter::make(){
 	// if a TFile node is given for writing output, then execute it
 	exec_node( "TFile" );
 
-	vector<string> tlp = { "TCanvas", "Plot", "Loop", "Canvas" };
+	// Top level nodes
+	vector<string> tlp = { "TCanvas", "Plot", "Loop", "Canvas", "Transforms", "Transform" };
 	paths = config.childrenOf( "", 1 );
 	for ( string p : paths ){
 		string tag = config.tagName( p );
@@ -111,6 +130,7 @@ void VegaXmlPlotter::make(){
 		}
 	}
 
+	// Write data out if requested
 	if ( dataOut && dataOut->IsOpen() ){
 		dataOut->Write();
 		dataOut->Close();
@@ -192,7 +212,7 @@ void VegaXmlPlotter::inlineDataFile( string _path, TFile *_f ){
 
 	XmlConfig tmpcfg;
 	tmpcfg.loadXmlString( xml );
-	config.include( tmpcfg, _path, true );
+	// config.include( tmpcfg, _path, true );
 	// now remove the url attribute to make it an inlinde data file
 	config.deleteAttribute( _path + ":url" );
 
@@ -457,8 +477,18 @@ TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
 		hName = nameOnly( hName );
 	}
 
+	if ( "" == data && dataChains.size() == 1 ){
+		data = dataChains.begin()->first;
+	} else if ( "" == data ){
+		LOG_F( ERROR, "Must specify the data source" );
+		return nullptr;
+	}
 	
 	TChain * chain = dataChains[ data ];
+	if ( nullptr == chain ){
+		LOG_F( ERROR, "Chain is null" );
+		return nullptr; 
+	}
 	string title = config.getXString( _path + ":title" );
 
 	string drawCmd = config.getXString( _path + ":draw" ) + " >> " + hName;
@@ -474,10 +504,12 @@ TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
 	}
 
 	long N = std::numeric_limits<long>::max();
-	if ( config.exists( _path + ":N" ) )
+	if ( config.exists( _path + ":N" ) ){
 		N = config.get<long>( _path + ":N" );
-
-	LOG_S(INFO) << "TTree->Draw( \"" << drawCmd << "\", \"" << selectCmd << "\"" << "\", \"" << drawOpt << "\"," << N << " )";
+	}
+		
+	LOG_F( INFO, "chain=%p", chain );
+	LOG_S(INFO) << "TTree->Draw( \"" << drawCmd << "\", \"" << selectCmd << "\"" << "\", \"" << drawOpt << "\"," << N << " );";
 	chain->Draw( drawCmd.c_str(), selectCmd.c_str(), drawOpt.c_str(), N );
 
 	TH1 *h = (TH1*)gPad->GetPrimitive( hName.c_str() );

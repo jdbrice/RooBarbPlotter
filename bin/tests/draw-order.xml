@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+	<!-- List your data sources -->
+	<!-- Can be files or trees, later access them by name -->
+	<Data name="sample" url="sample_data.root" />
+
+	<!-- If a Log:url is given, then a log will be written -->
+	<Log url="draw-order-log.log" />
+
+	<!-- If ExportConfig:url is given then a config as computed will be written-->
+	<ExportConfig url="draw-order-compiled.xml" />
+
+	<!-- Things out here apply to all plots unless overriden -->
+	<!-- Set the margins for a global TCanvas -->
+	<Margins left="0.10" right="0.12" top="0.1" bottom="0.15" />
+	<!-- Can also be set as an array (t, r, b, l) -->
+	<!-- <Margins>t, r, b, l</Margins> -->
+
+	<!-- Draw Latex 
+		x/y 	NDC coords
+		ux/uy 	User coords (i.e. on axis coords)
+		text 	Text to be displayed, can contain Latex
+		size 	Raw size of text - in ROOT units (bleh)
+		point 	Scaled text size, 12 point is reasonale size, 64 is large etc.
+	-->
+	<TLatex x="0.30" y="0.87" text="Dataset details here" size="0.03"/>
+
+
+	<!-- For standard canvas plots 
+		width/w		width of canvas in px
+		height/h	height of canvas in px
+	-->
+	<TCanvas width="1000" height="700" />
+
+	<!-- Basic Plot -->
+	<Plot>
+		<!-- Axes
+			lsx/lsy		linspace x/y (min, max, nbins)
+		 -->
+		<Axes lsx="-10, 10, 20" lsy="0.1, 5e3, 1" />
+
+		<!-- TLine
+			endpoints:	
+				x1,y1		starting point (x1,y1)
+				x2,y2		ending point (x2, y2)
+				OR
+				p1/p2 		p1=(x1,y1), p2=(x2,y2)
+				OR
+				x/y			x=(x1,x2), y=(y1,y2)
+			style		root line style
+			width 		line width
+			color		color - can use hex codes 3 or 6 digit
+		 -->
+		<TLine x1="-10" x2="10" y1="50" y2="50" style="1" width="3" color="#000" />
+		
+		<Histo data="sample" name="h2" style="styles.TH1" draw="same" linewidth="4" linecolor="blue" fca="blue, 0.5" optstat="0"/>
+
+		<Histo data="sample" name="h1" style="styles.TH1" optstat="0" draw="same" logy="1" />
+
+		<Legend title="Components">
+			<Entry name="h1" title="gaussian" opt="lpe"/>
+			<Entry name="h2" title="Landau" opt="lpe" />
+			
+			<Position x1="0.15" x2="0.35" y1="0.6" y2="0.8"/>
+		</Legend>
+
+		<Export url="draw-order-0.png" />
+	</Plot>
+
+	<Plot>
+		<Axes lsx="-10, 10, 20" lsy="0.1, 5e3, 1" />
+		<TLine x1="-10" x2="10" y1="50" y2="50" style="1" width="3" color="#000" />
+		
+		<Histo data="sample" name="h1" style="styles.TH1" optstat="0" draw="same" logy="1" />
+
+		<Histo data="sample" name="h2" style="styles.TH1" draw="same" line-width="4" line-color="blue" fill-color-alpha="blue, 0.5" optstat="0"/>
+
+		<Legend title="Components">
+			<Entry name="h1" title="gaussian" opt="lpe"/>
+			<Entry name="h2" title="Landau" opt="lpe" />
+			
+			<Position x1="0.15" x2="0.35" y1="0.6" y2="0.8"/>
+		</Legend>
+
+		<Export url="draw-order-1.png" />
+	</Plot>
+
+	<Plot>
+		<Axes lsx="-10, 10, 20" lsy="0.1, 5e3, 1" />
+		
+		
+		<Histo data="sample" name="h1" style="styles.TH1" optstat="0" draw="same" logy="1" />
+
+		<Histo data="sample" name="h2" style="styles.TH1" draw="same" linewidth="4" linecolor="blue" fca="blue, 0.5" optstat="0"/>
+
+		<TLine x1="-10" x2="10" y1="50" y2="50" style="1" width="3" color="#000" />
+
+		
+
+		<Legend title="Components">
+			<Entry name="h1" title="gaussian" opt="lpe"/>
+			<Entry name="h2" title="Landau" opt="lpe" />
+			
+			<Position x1="0.15" x2="0.35" y1="0.6" y2="0.8"/>
+		</Legend>
+
+		<Export url="draw-order-2.png" />
+	</Plot>
+		
+
+	<styles>
+		<TH1 title="basic TH1 style; X [units]; Y [units]" color="red" optstat="0"/>
+	</styles>
+
+
+</config>
