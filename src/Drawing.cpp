@@ -344,6 +344,17 @@ void VegaXmlPlotter::exec_TLine( string _path){
 	line->Draw("same");
 } // exec_TLine
 
+void VegaXmlPlotter::exec_Rect( string _path ){
+	DSCOPE();
+	vector<float> c;
+	c = config.getFloatVector( _path + ":pos" );
+	LOG_F( INFO, "Rect( %0.2f, %0.2f, %0.2f, %0.2f )", c[0], c[1], c[2], c[3] );
+	TBox * rect = new TBox( c[0], c[1], c[2], c[3] );
+	RooPlotLib rpl;
+	rpl.style( rect ).set( config, _path );
+	rect->Draw();
+} // exec_Rect
+
 void VegaXmlPlotter::exec_TLatex( string _path ){
 	DSCOPE();
 

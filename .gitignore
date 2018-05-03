@@ -41,3 +41,7 @@ VegaXmlPlotter.log
 bin/basic_test.xml
 bin/basic_test.C
 *.yaml
+bin/compiled.xml
+bin/.DS_Store
+.vscode/c_cpp_properties.json
+.DS_Store

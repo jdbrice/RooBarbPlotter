@@ -38,6 +38,7 @@ void VegaXmlPlotter::init(){
 	handle_map[ "Export"       ] = &VegaXmlPlotter::exec_Export;
 	handle_map[ "ExportConfig" ] = &VegaXmlPlotter::exec_ExportConfig;
 	handle_map[ "TLine"        ] = &VegaXmlPlotter::exec_TLine;
+	handle_map[ "Rect"         ] = &VegaXmlPlotter::exec_Rect;
 	handle_map[ "TLatex"       ] = &VegaXmlPlotter::exec_TLatex;
 	handle_map[ "TLegend"      ] = &VegaXmlPlotter::exec_TLegend;
 	handle_map[ "Legend"       ] = &VegaXmlPlotter::exec_TLegend;
