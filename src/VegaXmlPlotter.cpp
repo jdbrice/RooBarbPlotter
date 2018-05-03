@@ -489,8 +489,8 @@ TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
 		LOG_F( ERROR, "Chain is null" );
 		return nullptr; 
 	}
+	
 	string title = config.getXString( _path + ":title" );
-
 	string drawCmd = config.getXString( _path + ":draw" ) + " >> " + hName;
 	string selectCmd = config.getXString( _path + ":select" );
 	string drawOpt = config.getString( _path + ":opt" );
@@ -501,14 +501,14 @@ TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
 		HistoBins by( config, config.getXString( _path + ":bins_y" ) );
 		HistoBins bz( config, config.getXString( _path + ":bins_z" ) );
 		HistoBook::make( "D", hName, title, bx, by, bz );
+		LOG_F( INFO, "x=%s, y=%s, z=%s", bx.toString().c_str(), by.toString().c_str(), bz.toString().c_str() );
 	}
 
 	long N = std::numeric_limits<long>::max();
 	if ( config.exists( _path + ":N" ) ){
 		N = config.get<long>( _path + ":N" );
 	}
-		
-	LOG_F( INFO, "chain=%p", chain );
+
 	LOG_S(INFO) << "TTree->Draw( \"" << drawCmd << "\", \"" << selectCmd << "\"" << "\", \"" << drawOpt << "\"," << N << " );";
 	chain->Draw( drawCmd.c_str(), selectCmd.c_str(), drawOpt.c_str(), N );
 
