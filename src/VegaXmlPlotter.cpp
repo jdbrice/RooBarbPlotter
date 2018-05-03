@@ -49,6 +49,7 @@ void VegaXmlPlotter::init(){
 	handle_map[ "Pad"          ] = &VegaXmlPlotter::exec_Pad;
 	handle_map[ "Margins"      ] = &VegaXmlPlotter::exec_Margins;
 
+	/*** Transforms ***/
 	handle_map[ "Transforms"   ] = &VegaXmlPlotter::exec_Transforms;
 	handle_map[ "Transform"   ] = &VegaXmlPlotter::exec_Transforms;
 
@@ -67,6 +68,10 @@ void VegaXmlPlotter::init(){
 	handle_map[ "Style"        ] = &VegaXmlPlotter::exec_transform_Style;
 	handle_map[ "SetBinError"  ] = &VegaXmlPlotter::exec_transform_SetBinError;
 	handle_map[ "BinLabels"    ] = &VegaXmlPlotter::exec_transform_BinLabels;
+	handle_map[ "Sumw2"        ] = &VegaXmlPlotter::exec_transform_Sumw2;
+	handle_map[ "ProcessLine"  ] = &VegaXmlPlotter::exec_transform_ProcessLine;
+	handle_map[ "Assign"       ] = &VegaXmlPlotter::exec_transform_Assign;
+
 } // init
 
 void VegaXmlPlotter::exec_node( string _path ){

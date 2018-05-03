@@ -42,6 +42,7 @@ class VegaXmlPlotter : public TaskRunner
 {
 protected:
 	TFMaker makerTF;
+	bool initializedGROOT = false;
 
 	typedef void (VegaXmlPlotter::*MFP)(string);
 	std::map <string, MFP> handle_map;
@@ -100,6 +101,9 @@ public:
 	virtual void exec_transform_Style( string _path );
 	virtual void exec_transform_SetBinError( string _path );
 	virtual void exec_transform_BinLabels( string _path );
+	virtual void exec_transform_Sumw2( string _path );
+	virtual void exec_transform_ProcessLine( string _path );
+	virtual void exec_transform_Assign( string _path );
 
 
 	virtual bool exec( string tag, string _path ){

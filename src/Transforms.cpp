@@ -579,5 +579,99 @@ void VegaXmlPlotter::exec_transform_Style( string _path ){
 
 	DLOG( "settign style from: %s, and %s", (_path + ":style").c_str(), (_path + ".style").c_str() );
 	rpl.style( h ).set( config, _path).set( config, _path + ":style" ).set( config, _path + ".style" );
+}
+
+void VegaXmlPlotter::exec_transform_Sumw2( string _path ){
+
+	string d = config.getXString( _path + ":data" );
+	string n = config.getXString( _path + ":name" );
+
+	TH1 * h = findHistogram( _path, 0 );
+	if ( nullptr == h ) {
+		LOG_F( ERROR, "could not find histogram" );
+		return;
+	}
+	config.set( "uname", underscape(n) );
+	TH1 * hOther = h;
+	string nn = nameOnly( n );
+	if ( !config.exists( _path + ":save_as" ) ){
+		LOG_F( INFO, "Sumw2 in place" );
+		nn = config.getXString( _path + ":save_as" );
+		hOther = (TH1*)h->Clone( nn.c_str() );
+	}
+	hOther->Sumw2();
+	globalHistos[nn] = hOther;
+}
+
+void VegaXmlPlotter::exec_transform_Assign( string _path ){
+	DSCOPE();
+
+	string varname = config.getString( _path + ":var" );
+	
+
+	string d = config.getString( _path + ":data" );
+	string n = config.getString( _path + ":name" );
+	TH1 * h = findHistogram( _path, 0 );
+
+	if ( nullptr != h ){
+		config.set( "name", h->GetName() );
+		LOG_F( INFO, "Histogram %s available using as h or {name}", h->GetName() );
+		LOG_F( INFO, "TH1 * h = %s", h->GetName() );
+		gROOT->ProcessLine( ( string("TH1 * h = ") + h->GetName()).c_str() );
+	}
+
+	string expr = config.getString( _path + ":expr" );
+
+	LOG_F( INFO, "gROOT->ProcessLine( \"%s\" )", expr.c_str() );
+	
+	TNamed *tmp = new TNamed( "vestibule", "tmp storage"  );
+	gDirectory->Add( tmp );
+	
+	
+	int error = 0;
+
+	// Super crazy shit
+	// first include sstr header (if not done already)
+	// make a stringstream for conversion to char*
+	// Get the TNamed object for passing data
+	// store result of expression in sstr
+	// store result in the title of the TNamed
+	// 
+	if ( false == initializedGROOT ){
+		gROOT->ProcessLine( "#include \"sstream\" " );
+		initializedGROOT = true;
+	}
+	
+	gROOT->ProcessLine( "std::stringstream sstr;" );
+	gROOT->ProcessLine( "TNamed * tn = vestibule;");
+	gROOT->ProcessLine( "tn->GetTitle();" );
+	expr = "sstr << " + expr + ";";
+	gROOT->ProcessLine( expr.c_str() );
+	gROOT->ProcessLine( "tn->SetTitle( sstr.str().c_str() )" );
+	
+
+	
+	// 
+	LOG_F( INFO, "ERROR = %d", error );
+	LOG_F( INFO, "TNamed.title = %s", tmp->GetTitle() );
+	LOG_F( INFO, "ASSIGN [%s] = [%s]", varname.c_str(), tmp->GetTitle() );
+	config.set( varname, string(tmp->GetTitle()) );
+
+	// delete it
+	delete tmp;
+
+}
+
+void VegaXmlPlotter::exec_transform_ProcessLine( string _path ){
+
+	TH1 * h = findHistogram( _path, 0 );
+	if ( nullptr != h ){
+		config.set( "name", h->GetName() );
+		LOG_F( INFO, "Histogram %s available using {name}", h->GetName() );
+	}
+
+	string expr = config.getString( _path + ":expr" );
+	LOG_F( INFO, "gROOT->ProcessLine( \"%s\" )", expr.c_str() );
+	gROOT->ProcessLine( expr.c_str() );
 
 }
