@@ -147,7 +147,8 @@ void VegaXmlPlotter::inlineDataFile( string _path, TFile *_f ){
 
 	XmlConfig tmpcfg;
 	tmpcfg.loadXmlString( xml );
-	config.include( tmpcfg, _path, true );
+	//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	// BROKEN // config.include( tmpcfg, _path, true );
 	// now remove the url attribute to make it an inlinde data file
 	config.deleteAttribute( _path + ":url" );
 
@@ -261,10 +262,13 @@ void VegaXmlPlotter::makePlot( string _path, TPad * _pad ){
 	map<string, shared_ptr<TF1>> funcs =  makeTF( _path );
 
 	makeImages( _path );
+	makeLine( _path );
 	// makeHistoStack( histos );
 	makeLatex(""); // global first
+	makeRect( _path );
 	makeLatex(_path);
-	makeLine( _path );
+	
+
 	makeLegend( _path, histos, graphs, funcs );
 
 	makeExports( _path, _pad );
@@ -706,6 +710,8 @@ TH1* VegaXmlPlotter::makeHistogram( string _path, string &fqn ){
 
 	if ( nullptr == h ) return nullptr;
 
+	positionOptStats( "", nullptr );
+
 	config.set( "ClassName", h->ClassName() );
 	DLOG( "ClassName %s", config[ "ClassName" ].c_str() );
 	
@@ -977,6 +983,20 @@ void VegaXmlPlotter::makeLatex( string _path ){
 	}
 }
 
+void VegaXmlPlotter::makeRect( string _path ){
+	DSCOPE();
+
+	vector<string> rect_paths = config.childrenOf( _path, "Rect", 1 );
+	RooPlotLib rpl;
+	for ( string rpath : rect_paths ){
+		vector<float> c;
+		c = config.getFloatVector( rpath + ":pos" );
+		TBox * rect = new TBox( c[0], c[1], c[2], c[3] );
+		rpl.style( rect ).set( config, rpath );
+		rect->Draw();
+	}
+}
+
 void VegaXmlPlotter::makeLine( string _path ){
 	DSCOPE();
 	//INFO( classname(), "_path=" << quote(_path) );
@@ -1080,6 +1100,8 @@ TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
 		HistoBins bx( config, config.getXString( _path + ":bins_x" ) );
 		HistoBins by( config, config.getXString( _path + ":bins_y" ) );
 		HistoBins bz( config, config.getXString( _path + ":bins_z" ) );
+		LOG_F( INFO, "bins: %s, %s, %s", bx.toString().c_str(), by.toString().c_str(), bz.toString().c_str() );
+		
 		HistoBook::make( "D", hName, title, bx, by, bz );
 	}
 
@@ -1087,10 +1109,12 @@ TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
 	if ( config.exists( _path + ":N" ) )
 		N = config.get<long>( _path + ":N" );
 
-	LOG_S(INFO) << "TTree->Draw( \"" << drawCmd << "\", \"" << selectCmd << "\"" << "\", \"" << drawOpt << "\"," << N << " )";
+	LOG_S(INFO) << "TTree->Draw( " << quote( drawCmd ) << ", " << quote( selectCmd ) << ", " << quote( drawOpt ) << "," << N << " )";
 	chain->Draw( drawCmd.c_str(), selectCmd.c_str(), drawOpt.c_str(), N );
 
-	TH1 *h = (TH1*)gPad->GetPrimitive( hName.c_str() );
+	TH1 *h = (TH1*)gDirectory->Get( hName.c_str() );
+	// TH1 *h = (TH1*)gPad->GetPrimitive( hName.c_str() );
+	assert( nullptr != h );
 
 	if ( config.exists( _path +":after_draw" ) ){
 		string cmd = ".x " + config[_path+":after_ draw"] + "( " + h->GetName() + " )";
@@ -1106,30 +1130,60 @@ TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
 }
 
 void VegaXmlPlotter::positionOptStats( string _path, TPaveStats * st ){
-	DSCOPE();
-	if ( nullptr == st ) return;
+    DSCOPE();
+    
 
-	vector<double> pos = config.getDoubleVector( "OptStats" );
+    float x = config.getFloat( "OptStats:x", -1 );
+    float w = config.getFloat( "OptStats:w", -1 );
+    float y = config.getFloat( "OptStats:y", -1 );
+    float h = config.getFloat( "OptStats:h", -1 );
+    
+    
+    
+    
+    if ( x >=0 ){
+        gStyle->SetStatX( x ); // sets the right side of box, of course
+        LOG_F( 1, "SetStatX( %f ) -- this sets right side usually", x );
+    }
+    if ( w >=0 ){
+        gStyle->SetStatW( w ); // sets the left side with respect to X above
+        LOG_F( 1, "SetStatW( %f )", w );
+    }
 
-	// global first
-	if ( config.exists( "OptStats:x1" ) )
-		st->SetX1NDC( config.getFloat( "OptStats:x1" ) );
-	if ( config.exists( "OptStats:x2" ) )
-		st->SetX2NDC( config.getFloat( "OptStats:x2" ) );
-	if ( config.exists( "OptStats:y1" ) )
-		st->SetY1NDC( config.getFloat( "OptStats:y1" ) );
-	if ( config.exists( "OptStats:y2" ) )
-		st->SetY2NDC( config.getFloat( "OptStats:y2" ) ); 
-	
-	// local 
-	if ( config.exists( _path + ".OptStats:x1" ) )
-		st->SetX1NDC( config.getFloat( _path + ".OptStats:x1" ) );
-	if ( config.exists( _path + ".OptStats:x2" ) )
-		st->SetX2NDC( config.getFloat( _path + ".OptStats:x2" ) );
-	if ( config.exists( _path + ".OptStats:y1" ) )
-		st->SetY1NDC( config.getFloat( _path + ".OptStats:y1" ) );
-	if ( config.exists( _path + ".OptStats:y2" ) )
-		st->SetY2NDC( config.getFloat( _path + ".OptStats:y2" ) ); 
+    if ( y >= 0 ){
+        gStyle->SetStatY( y );
+        LOG_F( 1, "SetStatY( %f )", y );
+    }
+    if ( h >= 0 ){
+        gStyle->SetStatH( h );
+        LOG_F( 1, "SetStatH( %f )", h );
+    }
+
+
+    if ( nullptr == st ){
+        return;
+    }
+
+    float x1 = config.getFloat( "OptStats:x1", -1 );
+    float x2 = config.getFloat( "OptStats:x2", -1 );
+    float y1 = config.getFloat( "OptStats:y1", -1 );
+    float y2 = config.getFloat( "OptStats:y2", -1 );
+    
+    st->SetX1NDC( x1 );
+    st->SetX2NDC( x2 );
+    st->SetY1NDC( y1 );
+    st->SetY2NDC( y2 );
+
+    x1 = config.getFloat( _path + ".OptStats:x1", -1 );
+    x2 = config.getFloat( _path + ".OptStats:x2", -1 );
+    y1 = config.getFloat( _path + ".OptStats:y1", -1 );
+    y2 = config.getFloat( _path + ".OptStats:y2", -1 );
+    
+    st->SetX1NDC( x1 );
+    st->SetX2NDC( x2 );
+    st->SetY1NDC( y1 );
+    st->SetY2NDC( y2 );
+
 }
 
 TCanvas* VegaXmlPlotter::makeCanvas( string _path ){
@@ -1217,6 +1271,12 @@ void VegaXmlPlotter::makeTransform( string tpath ){
 			makeSetBinError( tform );
 		if ( "BinLabels" == tn || "SetBinLabels" == tn )
 			makeBinLabels( tform );
+		if ( "Sumw2" == tn )
+			makeSumw2( tform );
+		if ( "ProcessLine" == tn )
+			makeProcessLine( tform );
+		if ( "Assign" == tn )
+			makeAssign( tform );
 		
 
 	}
@@ -1603,6 +1663,7 @@ void VegaXmlPlotter::makeRebin( string _path ){
 
 	if ( nDim == 1 && bx.nBins() > 0 ){
 		hOther = h->Rebin( bx.nBins(), nn.c_str(), bx.bins.data() );
+		LOG_F( INFO, "Saving histogram \"%s\" ", nn.c_str() );
 		globalHistos[nn] = hOther;
 	} else if ( nDim == 1 ){
 		// ERRORC( "Cannot Rebin, check error message for x bins" );
@@ -1611,6 +1672,7 @@ void VegaXmlPlotter::makeRebin( string _path ){
 	if ( nDim == 2 && bx.nBins() > 0 && by.nBins() > 0 && nullptr != dynamic_cast<TH2*>( h ) ){
 		hOther = new TH2D( nn.c_str(), h->GetTitle(), bx.nBins(), bx.bins.data(), by.nBins(), by.bins.data() );
 		HistoBins::rebin2D( dynamic_cast<TH2*>(h), dynamic_cast<TH2*>(hOther) );
+		LOG_F( INFO, "Saving histogram \"%s\" ", nn.c_str() );
 		globalHistos[nn] = hOther;
 	} else if ( nDim == 2 ){
 		if ( nullptr == dynamic_cast<TH2*>( h ) ){
@@ -1623,6 +1685,7 @@ void VegaXmlPlotter::makeRebin( string _path ){
 	if ( nDim == 3 && bx.nBins() > 0 && by.nBins() > 0 && bz.nBins() > 0 && nullptr != dynamic_cast<TH3*>( h ) ){
 		hOther = new TH3D( nn.c_str(), h->GetTitle(), bx.nBins(), bx.bins.data(), by.nBins(), by.bins.data(), bz.nBins(), bz.bins.data() );
 		HistoBins::rebin3D( dynamic_cast<TH3*>(h), dynamic_cast<TH3*>(hOther) );
+		LOG_F( INFO, "Saving histogram \"%s\" ", nn.c_str() );
 		globalHistos[nn] = hOther;
 	} else if ( nDim == 3 ){
 		if ( nullptr == dynamic_cast<TH2*>( h ) ){
@@ -1675,6 +1738,80 @@ void VegaXmlPlotter::makeScale( string _path ){
 	hOther->Scale( factor, opt.c_str() );
 	LOG_F( INFO, "bin107, post = %f", hOther->GetBinContent( 107 ) );
 	globalHistos[ nn] = hOther;
+}
+
+void VegaXmlPlotter::makeAssign( string _path ){
+	DSCOPE();
+
+	string varname = config.getString( _path + ":var" );
+	
+
+	string d = config.getString( _path + ":data" );
+	string n = config.getString( _path + ":name" );
+	TH1 * h = findHistogram( _path, 0 );
+
+	if ( nullptr != h ){
+		config.set( "name", h->GetName() );
+		LOG_F( INFO, "Histogram %s available using as h or {name}", h->GetName() );
+		LOG_F( INFO, "TH1 * h = %s", h->GetName() );
+		gROOT->ProcessLine( ( string("TH1 * h = ") + h->GetName()).c_str() );
+	}
+
+	string expr = config.getString( _path + ":expr" );
+
+	LOG_F( INFO, "gROOT->ProcessLine( \"%s\" )", expr.c_str() );
+	
+	TNamed *tmp = new TNamed( "vestibule", "tmp storage"  );
+	gDirectory->Add( tmp );
+	
+	
+	int error = 0;
+
+	// Super crazy shit
+	// first include sstr header (if not done already)
+	// make a stringstream for conversion to char*
+	// Get the TNamed object for passing data
+	// store result of expression in sstr
+	// store result in the title of the TNamed
+	// 
+	if ( false == initializedGROOT ){
+		gROOT->ProcessLine( "#include \"sstream\" " );
+		initializedGROOT = true;
+	}
+	
+	gROOT->ProcessLine( "std::stringstream sstr;" );
+	gROOT->ProcessLine( "TNamed * tn = vestibule;");
+	gROOT->ProcessLine( "tn->GetTitle();" );
+	expr = "sstr << " + expr + ";";
+	gROOT->ProcessLine( expr.c_str() );
+	gROOT->ProcessLine( "tn->SetTitle( sstr.str().c_str() )" );
+	
+
+	
+	// 
+	LOG_F( INFO, "ERROR = %d", error );
+	LOG_F( INFO, "TNamed.title = %s", tmp->GetTitle() );
+	LOG_F( INFO, "ASSIGN [%s] = [%s]", varname.c_str(), tmp->GetTitle() );
+	config.set( varname, string(tmp->GetTitle()) );
+
+	// delete it
+	delete tmp;
+
+}
+
+
+void VegaXmlPlotter::makeProcessLine( string _path ){
+
+	TH1 * h = findHistogram( _path, 0 );
+	if ( nullptr != h ){
+		config.set( "name", h->GetName() );
+		LOG_F( INFO, "Histogram %s available using {name}", h->GetName() );
+	}
+
+	string expr = config.getString( _path + ":expr" );
+	LOG_F( INFO, "gROOT->ProcessLine( \"%s\" )", expr.c_str() );
+	gROOT->ProcessLine( expr.c_str() );
+
 }
 
 void VegaXmlPlotter::makeDraw( string _path ){
@@ -1821,6 +1958,36 @@ void VegaXmlPlotter::makeClone( string _path ){
 		// now clone the subrange
 		HistoBook::cloneBinRange( h, hOther, b1, b2 );
 	}
+
+	globalHistos[nn] = hOther;
+}
+
+void VegaXmlPlotter::makeSumw2( string _path ){
+
+	
+
+	string d = config.getXString( _path + ":data" );
+	string n = config.getXString( _path + ":name" );
+
+	TH1 * h = findHistogram( _path, 0 );
+	if ( nullptr == h ) {
+		LOG_F( ERROR, "could not find histogram" );
+		return;
+	}
+
+	config.set( "uname", underscape(n) );
+
+
+	TH1 * hOther = h;
+	string nn = nameOnly( n );
+
+	if ( !config.exists( _path + ":save_as" ) ){
+		LOG_F( WARNING, "Sumw2 in place" );
+		nn = config.getXString( _path + ":save_as" );
+		hOther = (TH1*)h->Clone( nn.c_str() );
+	}
+
+	hOther->Sumw2();
 
 	globalHistos[nn] = hOther;
 }

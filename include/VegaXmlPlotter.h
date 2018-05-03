@@ -58,6 +58,8 @@ public:
 	map<string, TH1 * > globalHistos;
 	map<string, TGraph * > globalGraphs;
 
+	bool initializedGROOT = false;
+
 	TFile * dataOut = nullptr;
 	virtual void loadDataFile( string _path );
 	virtual int numberOfData();
@@ -88,6 +90,7 @@ public:
 	virtual void makeLegend( string _path, map<string, TH1*> &histos, map<string, TGraph*> &graphs, map<string, shared_ptr<TF1>> &funcs );
 	virtual void makeLatex( string _path );
 	virtual void makeLine( string _path );
+	virtual void makeRect( string _path );
 	virtual void makeExports( string _path, TPad * _pad = nullptr );
 	// virtual void makeHistoStack( map<string, TH1*> histos );
 
@@ -113,6 +116,9 @@ public:
 	virtual void transformStyle( string _path );
 	virtual void makeSetBinError( string _path );
 	virtual void makeBinLabels( string _path );
+	virtual void makeSumw2( string _path );
+	virtual void makeAssign( string _path );
+	virtual void makeProcessLine( string _path );
 
 	// Canvas based form
 	virtual void makeCanvases();
