@@ -109,18 +109,19 @@ string VegaXmlPlotter::random_string( size_t length ){
 void VegaXmlPlotter::make(){
 	DSCOPE();
 
-	vector<string> paths = config.childrenOf( "", "ExportConfig" );
-	for ( string p : paths ){
-		exec_node( p );
-	}
 
 	// Load data first
-	paths = config.childrenOf( "", "Data" );
+	vector<string> dpaths = config.childrenOf( "", "Data" );
+	for ( string p : dpaths ){
+		exec_node( p );
+	}
+
+    vector<string> paths = config.childrenOf( "", "ExportConfig" );
 	for ( string p : paths ){
 		exec_node( p );
 	}
 
-	if ( paths.size() > 0 && dataFiles.size() == 0 && dataChains.size() == 0 ){
+	if ( dpaths.size() > 0 && dataFiles.size() == 0 && dataChains.size() == 0 ){
 		LOG_F( WARNING, "No valid data files found, exiting" );
 		return;
 	}
@@ -220,7 +221,9 @@ void VegaXmlPlotter::inlineDataFile( string _path, TFile *_f ){
 
 	XmlConfig tmpcfg;
 	tmpcfg.loadXmlString( xml );
-	// config.include( tmpcfg, _path, true );
+    tmpcfg.toXmlFile( config.get<string>(_path + ":url") + ".xml" );
+    config.set( _path + ".Include:url", config.get<string>(_path + ":url") + ".xml" );
+    config.checkNewIncludes( _path );
 	// now remove the url attribute to make it an inlinde data file
 	config.deleteAttribute( _path + ":url" );
 
