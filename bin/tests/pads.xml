@@ -5,9 +5,9 @@
 	<Data name="sample" url="sample_data.root" />
 
 	<!-- If a Log:url is given, then a log will be written -->
-	<Log url="log.log" />
+	<Log url="pads.log" />
 
-	<ExportConfig url="compiled.xml" />
+	<ExportConfig url="pads-compiled.xml" />
 
 	<!-- Things out here apply to all plots unless overriden -->
 	<!-- Set the margins for a global TCanvas -->
@@ -24,61 +24,12 @@
 	-->
 	<TLatex x="0.30" y="0.87" text="Dataset details here" size="0.03"/>
 
-
-
-	<TCanvas width="1000" height="700" />
-
-	<Loop var="x" states="1, 2, 3">
-		<Plot>
-			<Axes lsx="-10, 10, 20" lsy="0.1, 5e3, 1" />
-
-			<TLine x1="-10" x2="10" y1="50" y2="50" style="1" width="3" color="#000" />
-			
-			<Histo data="sample" name="h1" style="styles.TH1" optstat="0" draw="same" logy="1" />
-			<Histo data="sample" name="h2" style="styles.TH1" draw="same" color="blue" fca="blue, 0.25" optstat="0"/>
-			
-
-			<Legend title="Components">
-				<Entry name="h1" title="gaussian" opt="lpe"/>
-				<Entry name="h2" title="Landau" opt="lpe" />
-				
-				<Position x1="0.15" x2="0.35" y1="0.6" y2="0.8"/>
-			</Legend>
-
-			<Export url="h1_{x}_{y}.png" />
-		</Plot>
-	</Loop>
-
-
-	<Plot>
-		<!-- <Axes lsx="-10, 10, 20" lsy="0.1, 100, 1" /> -->
-
-		<Histo data="sample" name="h1" style="styles.TH1" optstat="0" draw="" logy="1" />
-		
-		<Histo data="sample" name="h2" style="styles.TH1" draw="same" color="blue" fca="blue, 0.25" optstat="0"/>
-		
-
-		<Legend title="Components">
-			<Entry name="h1" title="gaussian" opt="lpe"/>
-			<Entry name="h2" title="Landau" opt="lpe" />
-			
-			<Position x1="0.15" x2="0.35" y1="0.6" y2="0.8"/>
-		</Legend>
-
-		<TLine x1="-10" x2="10" y1="50" y2="50" style="1" width="3" color="#000" />
-
-		<Export url="h2.png" />
-	</Plot>
-
-
-	
-
 	<Color>red</Color>
 	<Color>blue, 0.25</Color>
 
 
 	<Canvas cols="24" rows="24">
-		
+	
 		<Pad gx="0, 24" gy="0, 12" m="0.05" lm="0.1" name="1" > 
 			<!-- <Axes lsx="-50, 50, 500" lsy="1, 1e4, 100" optstat="0" axisdigits="2"/> -->
 
@@ -87,7 +38,7 @@
 			</Histo>
 
 			<Histo data="sample" name="h2" style="styles.TH1">
-				<style draw="same" color="blue" fca="blue, 0.25" optstat="0" />
+				<style draw="same" line-color="blue" fca="blue, 0.25" optstat="0" />
 			</Histo>
 
 			<Legend>
@@ -97,8 +48,8 @@
 				<Position x1="0.15" x2="0.35" y1="0.6" y2="0.8"/>
 			</Legend>
 
-			<TLine x1="-10" x2="10" y1="10" y2="10"/>
-			<Export url="pad_1.pdf" />
+			<TLine x1="-10" x2="10" y1="10" y2="10" color="#000"/>
+			<Export url="pad-1.pdf" />
 		</Pad>
 
 		<Pad gx="0, 24" gy="12, 24" m="0.05" name="2" > 
@@ -109,26 +60,21 @@
 			</Histo>
 
 			<Histo data="sample" name="h2" style="styles.TH1">
-				<style draw="same" color="blue" fca="blue, 0.25" optstat="0" />
+				<style draw="same" line-color="blue" fca="blue, 0.25" optstat="0" />
 			</Histo>
 
 			<Legend>
-				<Entry name="h1" title="gaussian" opt="lpe"/>
-				<Entry name="h2" title="Landau" opt="lpe" />
+				<Entry name="h1" title="gaussian" opt="fe"/>
+				<Entry name="h2" title="Landau" opt="fe" />
 				
 				<Position x1="0.15" x2="0.35" y1="0.6" y2="0.8"/>
 			</Legend>
 
-			<TLine x1="-10" x2="10" y1="10" y2="10"/>
-			<Export url="pad_2.pdf" />
+			<TLine x1="-10" x2="10" y1="10" y2="10" color="#000"/>
+			<Export url="pad-2.pdf" />
 		</Pad>
 
-
-		
-		<!-- <Pad gx="0, 6" gy="3, 4" m="0" name="2"/> 
-		<Pad gx="6, 9" gy="3, 6" m="0" name="3"/> 
-		<Pad gx="3, 6" gy="0, 3" m="0" name="4"/>  -->
-		<Export url="h1Can.pdf" />
+		<Export url="pad-canvas.pdf" />
 	</Canvas>
 
 

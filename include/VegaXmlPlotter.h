@@ -111,6 +111,7 @@ public:
 	}
 
 
+	string random_string( size_t length );
 
 	virtual void inlineDataFile( string _path, TFile *f );
 

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+	<!-- List your data sources -->
+	<!-- Can be files or trees, later access them by name -->
+	<Data name="sample" url="sample_data.root" />
+
+	<!-- If a Log:url is given, then a log will be written -->
+	<Log url="Loops-log.log" />
+
+	<ExportConfig url="Loops-compiled.xml" yaml="true"/>
+
+	<!-- Things out here apply to all plots unless overriden -->
+	<!-- Set the margins for a global TCanvas -->
+	<Margins left="0.10" right="0.12" top="0.1" bottom="0.15" />
+	<!-- Can also be set as an array (t, r, b, l) -->
+	<!-- <Margins>t, r, b, l</Margins> -->
+
+	<!-- Draw Latex 
+		x/y 	NDC coords
+		ux/uy 	User coords (i.e. on axis coords)
+		text 	Text to be displayed, can contain Latex
+		size 	Raw size of text - in ROOT units (bleh)
+		point 	Scaled text size, 12 point is reasonale size, 64 is large etc.
+	-->
+	<TLatex x="0.30" y="0.87" text="Dataset details here" size="0.03"/>
+
+	<TCanvas width="1000" height="700" />
+
+	<Loop var="y" states="1, 2, 3">
+		<Loop var="x" states="1, 2, 3">
+			<Plot>
+				<Axes lsx="-10, 10, 20" lsy="0.1, 5e3, 1" />
+
+				<TLine x1="-10" x2="10" y1="50" y2="50" style="1" width="3" color="#000" />
+				
+				<Histo data="sample" name="h1" style="styles.TH1" optstat="0" draw="same" logy="1" />
+				<Histo data="sample" name="h2" style="styles.TH1" draw="same" color="blue" fca="blue, 0.25" optstat="0"/>
+				
+
+				<Legend title="Components">
+					<Entry name="h1" title="gaussian" opt="lpe"/>
+					<Entry name="h2" title="Landau" opt="lpe" />
+					
+					<Position x1="0.15" x2="0.35" y1="0.6" y2="0.8"/>
+				</Legend>
+
+				<Export url="Loop-plot-{x}-{y}.png" />
+			</Plot>
+		</Loop>
+	</Loop>
+
+
+	<styles>
+		<TH1 title="basic TH1 style; X [units]; Y [units]" color="red" optstat="0"/>
+	</styles>
+
+
+</config>

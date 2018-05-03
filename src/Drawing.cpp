@@ -13,6 +13,7 @@
 #include "TStyle.h"
 #include "TColor.h"
 #include "TTree.h"
+#include "TString.h"
 
 // #include "TBufferJSON.h"
 
@@ -94,8 +95,6 @@ void VegaXmlPlotter::exec_Loop( string _path ){
 	if ( config.exists( _path + ":var" ) )
 		var = config.getString( _path + ":var" );
 
-
-
 	for ( string state : states ){
 		DLOG( "Executing loop %s = %s", var.c_str(), state.c_str() );
 		string value = state;
@@ -103,6 +102,13 @@ void VegaXmlPlotter::exec_Loop( string _path ){
 		// vector<string> paths = config.childrenOf( _path, 1 );
 		exec_children( _path );
 	} // loop on states
+
+	// Used for Transforms or organization
+	if ( states.size() == 0 ){
+		LOG_F( INFO, "Executing Scope" );
+		exec_children( _path );
+	}
+
 } // exec_Loop
 
 void VegaXmlPlotter::exec_Plot( string _path ) {
@@ -136,12 +142,6 @@ void VegaXmlPlotter::exec_Plot( string _path ) {
 	
 	exec_children( _path, "Legend" );
 	exec_children( _path, "Export" );
-
-	// cleanup this breaks Pads and doesnt really do anything useful, so taken out for now
-	if ( nullptr != current_frame ){
-		delete current_frame;
-		current_frame = nullptr;
-	}
 } // exec_Plot
 
 void VegaXmlPlotter::exec_Axes( string _path ){
@@ -183,7 +183,9 @@ void VegaXmlPlotter::exec_Axes( string _path ){
 	config.set( "y_min", dts(y.minimum()) );
 	config.set( "y_max", dts(y.maximum()) );
 
-	TH1 * frame = new TH1C( "frame", "", x.nBins(), x.bins.data() );
+
+	TH1 * frame = new TH1C( TString::Format( "frame_%s", random_string( 4 ).c_str()), "", x.nBins(), x.bins.data() );
+	frame->SetDirectory( 0 );
 
 	rpl.style( frame ).set( "yr", y.minimum(), y.maximum() );
 	rpl.set( config, _path ).set( config, _path + ":style" ).set( config, _path + ".style" );
@@ -217,18 +219,22 @@ void VegaXmlPlotter::exec_Histo( string _path ){
 	DSCOPE();
 	RooPlotLib rpl;
 
-	TH1* h = findHistogram( _path, 0 );
-	LOG_F( INFO, "Found Histogram @%s = %p", _path.c_str(), h );
+	string name = config.getXString( _path + ":name" );
+	string data = config.getXString( _path + ":data" );
+	string fqn = fullyQualifiedName( data, name );
 
-	if ( nullptr == h ) return;
+	TH1* h = findHistogram( _path, 0 );
+	
+	if ( nullptr == h ) {
+		LOG_F( WARNING, "Could not find Histogram @ %s (fqn=\"%s\")", _path.c_str(), fqn.c_str() );
+		return;
+	}
 
 	config.set( "ClassName", h->ClassName() );
 	DLOG( "ClassName %s", config[ "ClassName" ].c_str() );
+
 	
-	string name = config.getXString( _path + ":name" );
-	string data = config.getXString( _path + ":data" );
-	
-	string fqn = fullyQualifiedName( data, name );
+	LOG_F( INFO, "Found Histogram @%s = %p (fqn=%s)", _path.c_str(), h, fqn.c_str() );
 
 	float nI = h->Integral();
 	string normp = config.oneOf( _path + ".Norm", _path + ":norm" );
@@ -321,12 +327,15 @@ void VegaXmlPlotter::exec_TLine( string _path){
 		}
 	}
 
-	LOG_F( INFO, "Line (%f, %f)->(%f, %f)", x[0], y[0], x[1], y[1] );
+	x[0] = config.getDouble( _path + ":x1", x[0] );
+	x[1] = config.getDouble( _path + ":x2", x[1] );
+	y[0] = config.getDouble( _path + ":y1", y[0] );
+	y[1] = config.getDouble( _path + ":y2", y[1] );
+
+	LOG_F( INFO, "Line (%0.2f, %0.2f)->(%0.2f, %0.2f)", x[0], y[0], x[1], y[1] );
 	TLine * line = new TLine( 
-		config.getDouble( _path + ":x1", x[0] ),
-		config.getDouble( _path + ":y1", y[0] ),
-		config.getDouble( _path + ":x2", x[1] ),
-		config.getDouble( _path + ":y2", y[1] ) );
+		x[0], y[0],
+		x[1], y[1] );
 
 	line->SetLineColor( color( config.getString( _path + ":color" ) ) );
 	line->SetLineWidth( config.getInt( _path + ":width", 1 ) );
@@ -609,7 +618,14 @@ void VegaXmlPlotter::exec_Margins( string _path ){
 
 void VegaXmlPlotter::exec_ExportConfig( string _path ){
 	DSCOPE();
-	LOG_F( INFO, "exporting config to %s", config[ _path + ":url" ].c_str() );
-	config.deleteNode( _path );	// not working!!!
-	config.toXmlFile( config[_path+":url"] );
+
+	string fname = config[_path+":url"];
+	LOG_F( INFO, "Exporting config to %s", fname.c_str() );
+	config.toXmlFile( fname );
+	if ( config.get<bool>( _path + ":yaml", false ) ){
+		string yaml_url=fname.substr(0,fname.find_last_of('.')) + ".yaml";
+		LOG_F( INFO, "Dumping config to %s", yaml_url.c_str() );
+		config.dumpToFile( yaml_url );
+	}
+	config.deleteNode( _path );
 } // ExportConfig
