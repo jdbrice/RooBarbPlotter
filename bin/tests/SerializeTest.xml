@@ -21,6 +21,10 @@
 
 	<Plot>
 		<Histo name="d/hh" draw="hist" optstat="0" logy="1" />
-		<Export url="test.pdf" />
+		<Export url="Serialize-0.pdf" />
+	</Plot>
+    <Plot>
+		<Histo name="d/hh2" draw="colz" optstat="0" logz="1" />
+		<Export url="Serialize-1.png" />
 	</Plot>
 </root>
