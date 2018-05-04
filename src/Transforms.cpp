@@ -266,6 +266,7 @@ void VegaXmlPlotter::exec_transform_MultiAdd( string _path ){
 
 void VegaXmlPlotter::exec_transform_Add( string _path){
 	DSCOPE();
+    
 	if ( !config.exists( _path + ":save_as" ) ){
 		return;
 	}
@@ -286,6 +287,7 @@ void VegaXmlPlotter::exec_transform_Add( string _path){
 		return;
 	}
 
+    LOG_F( INFO, "%s = Add( %s, %s )", nn.c_str(), hA->GetName(), hB->GetName() );
 	TH1 * hSum = (TH1*) hA->Clone( nn.c_str() );
 	hSum->Add( hB, mod );
 	globalHistos[nn] = hSum;

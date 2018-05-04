@@ -24,8 +24,11 @@ void VegaXmlPlotter::exec_TCanvas( string _path ){
 	DSCOPE();
 	int width = -1, height = -1;
 	
-	width = config.getInt( _path + ".TCanvas:width", width );
-	height = config.getInt( _path + ".TCanvas:height", height );
+	width = config.get<int>( _path + ":width", width );
+	height = config.get<int>( _path + ":height", height );
+
+	width = config.get<int>( _path + ":w", width );
+	height = config.get<int>( _path + ":h", height );
 
 	TCanvas * c = nullptr; 
 	if ( width != -1 && height > -1 ){
@@ -44,6 +47,7 @@ void VegaXmlPlotter::exec_TCanvas( string _path ){
 	c->Modified();
 	c->Draw(); 
 	c->Show();
+	gPad = c;
 	//return c;
 } // exec_TCanvas
 
@@ -621,6 +625,10 @@ void VegaXmlPlotter::exec_Margins( string _path ){
 
 	LOG_F( INFO, "Margins( %f, %f, %f, %f )", tm, rm, bm, lm );
 
+	if ( nullptr == gPad ){
+		LOG_F( WARNING, "Null gPad, cannot set margins. Add a <TCanvas> before the <Margin>" );
+		return;
+	}
 	if ( tm>=0 ) gPad->SetTopMargin( tm );
 	if ( rm>=0 ) gPad->SetRightMargin( rm );
 	if ( bm>=0 ) gPad->SetBottomMargin( bm );

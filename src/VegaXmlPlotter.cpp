@@ -130,7 +130,7 @@ void VegaXmlPlotter::make(){
 	exec_node( "TFile" );
 
 	// Top level nodes
-	vector<string> tlp = { "TCanvas", "Plot", "Loop", "Canvas", "Transforms", "Transform" };
+	vector<string> tlp = { "TCanvas", "Margins", "Plot", "Loop", "Canvas", "Transforms", "Transform" };
 	paths = config.childrenOf( "", 1 );
 	for ( string p : paths ){
 		string tag = config.tagName( p );
