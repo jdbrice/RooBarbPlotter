@@ -110,7 +110,7 @@ public:
 	virtual bool exec( string tag, string _path ){
 		bool e = handle_map.count( tag ) > 0;
 		if ( false == e ) return false;
-		LOG_F( INFO, "exec(%s)", tag.c_str() );
+		LOG_F( INFO, "exec( %s @ %s )", tag.c_str(), _path.c_str() );
 		MFP fp = handle_map[ tag ];
 		(this->*fp)( _path );
 		return true;
