@@ -99,19 +99,23 @@ void VegaXmlPlotter::exec_Loop( string _path ){
 	if ( config.exists( _path + ":var" ) )
 		var = config.getString( _path + ":var" );
 
-	for ( string state : states ){
-		DLOG( "Executing loop %s = %s", var.c_str(), state.c_str() );
-		string value = state;
-		config.set( var, value );
-		// vector<string> paths = config.childrenOf( _path, 1 );
-		exec_children( _path );
-	} // loop on states
-
 	// Used for Transforms or organization
 	if ( states.size() == 0 ){
-		LOG_F( INFO, "Executing Scope" );
+		LOG_SCOPE_F( INFO, "Scope at %s", _path.c_str() );
+		// LOG_F( INFO, "Executing Scope" );
 		exec_children( _path );
+	} else {
+		LOG_SCOPE_F( INFO, "Loop at %s", _path.c_str() );
+		for ( string state : states ){
+			DLOG( "Executing loop %s = %s", var.c_str(), state.c_str() );
+			string value = state;
+			config.set( var, value );
+			// vector<string> paths = config.childrenOf( _path, 1 );
+			exec_children( _path );
+		} // loop on states
 	}
+
+	
 
 } // exec_Loop
 
@@ -129,7 +133,7 @@ void VegaXmlPlotter::exec_Plot( string _path ) {
 	// 	gStyle->SetPalette( config.getInt( _path + ".Palette" ) );
 	// }
 
-	vector<string> tlp = { "Loop", "Histo", "Graph", "TF1", "TLine", "TLatex" };
+	vector<string> tlp = { "Scope", "Loop", "Histo", "Graph", "TF1", "TLine", "TLatex" };
 	vector<string> paths = config.childrenOf( _path, 1 );
 	for ( string p : paths ){
 		string tag = config.tagName( p );
@@ -469,13 +473,13 @@ void VegaXmlPlotter::exec_TLegend( string _path ){
 	}
 	if ( spos.find("vcenter") != string::npos ){
 		DLOG( "LEGEND: VERTICAL CENTER" );
-		y1 = 0.5 - h/2;
-		y2 = 0.5 + h/2;
+		y1 = 0.5 - h/2 + padding[2];
+		y2 = 0.5 + h/2 + padding[2] - padding[0];
 	}
 	if ( spos.find("hcenter") != string::npos ){
 		DLOG( "LEGEND: HORIZONTAL CENTER" );
-		x1 = 0.5 - w/2;
-		x2 = 0.5 + w/2;
+		x1 = 0.5 - w/2 + padding[3];
+		x2 = 0.5 + w/2 + padding[3] - padding[1];
 	}
 	DLOG( "Legend position: (%f, %f) -> (%f, %f)", x1, y1, x2, y2 );
 	TLegend * leg = new TLegend( x1, y1, x2, y2 );

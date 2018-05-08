@@ -34,6 +34,7 @@ void VegaXmlPlotter::init(){
 	handle_map[ "TFile"        ] = &VegaXmlPlotter::exec_TFile;
 	handle_map[ "Plot"         ] = &VegaXmlPlotter::exec_Plot;
 	handle_map[ "Loop"         ] = &VegaXmlPlotter::exec_Loop;
+	handle_map[ "Scope"        ] = &VegaXmlPlotter::exec_Loop;
 	handle_map[ "Axes"         ] = &VegaXmlPlotter::exec_Axes;
 	handle_map[ "Export"       ] = &VegaXmlPlotter::exec_Export;
 	handle_map[ "ExportConfig" ] = &VegaXmlPlotter::exec_ExportConfig;
@@ -129,6 +130,12 @@ void VegaXmlPlotter::make(){
 	// if a TFile node is given for writing output, then execute it
 	exec_node( "TFile" );
 
+	// if not global TCanvas tag exists then make a fallback canvas
+	if ( 0 == config.childrenOf( "", "TCanvas" ).size() ){
+		LOG_F( INFO, "No <TCanvas/> found at root, making a global TCanvas" );
+		exec_TCanvas( "" );
+	}
+
 	// Top level nodes
 	vector<string> tlp = { "TCanvas", "Margins", "Plot", "Loop", "Canvas", "Transforms", "Transform" };
 	paths = config.childrenOf( "", 1 );
@@ -219,12 +226,13 @@ void VegaXmlPlotter::inlineDataFile( string _path, TFile *_f ){
 
 	xml += "\n</config>";
 
+	// make a tmp config and save it to disk as an XML version of data file
 	XmlConfig tmpcfg;
 	tmpcfg.loadXmlString( xml );
-    tmpcfg.toXmlFile( config.get<string>(_path + ":url") + ".xml" );
-    config.set( _path + ".Include:url", config.get<string>(_path + ":url") + ".xml" );
-    config.checkNewIncludes( _path );
-	// now remove the url attribute to make it an inlinde data file
+	tmpcfg.toXmlFile( config.get<string>(_path + ":url") + ".xml" );
+
+	// include it into the XML file and delete the old reference to data file
+	config.include_xml( xml, _path );
 	config.deleteAttribute( _path + ":url" );
 
 	// LOG_F( INFO, "resulting XML to inline : \n%s", xml.c_str() );
