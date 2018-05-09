@@ -232,7 +232,8 @@ void VegaXmlPlotter::inlineDataFile( string _path, TFile *_f ){
 	tmpcfg.toXmlFile( config.get<string>(_path + ":url") + ".xml" );
 
 	// include it into the XML file and delete the old reference to data file
-	config.include_xml( xml, _path );
+	LOG_F( INFO, "include @ %s", _path.c_str() );
+	config.include_xml( xml, _path  );
 	config.deleteAttribute( _path + ":url" );
 
 	// LOG_F( INFO, "resulting XML to inline : \n%s", xml.c_str() );

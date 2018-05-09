@@ -585,6 +585,11 @@ void VegaXmlPlotter::exec_Canvas( string _path ){
 	xcanvas->getCanvas()->Update();
 
 	gPad = (TPad*) xcanvas->getCanvas();
+	gPad->SetFillColor(0); 
+	gPad->SetFillStyle(0);
+
+
+
 	exec_children( _path, "Export" );
 } // exec_Canvas
 
@@ -601,6 +606,12 @@ void VegaXmlPlotter::exec_Pad( string _path ){
 	}
 
 	XmlPad * xpad = xcanvas->activatePad( n );
+
+	TPad * p = xpad->getRootPad();
+	p->SetFillColor(0);
+	p->SetFillStyle(0);
+	p->SetFrameFillColor(0);
+	p->SetFrameFillStyle(0);
 
 	// move pad to origin
 	xpad->moveToOrigin();
