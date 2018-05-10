@@ -406,26 +406,68 @@ void VegaXmlPlotter::exec_transform_Rebin( string _path ){
 void VegaXmlPlotter::exec_transform_Scale( string _path ){
 	DSCOPE();
 
-	if ( !config.exists( _path + ":save_as" ) ){
-		// ERRORC( "Must provide " << quote( "save_as" ) << " attribute to save transformation" );
-		return;
-	}
-
 	string d = config.getXString( _path + ":data" );
 	string n = config.getXString( _path + ":name" );
+	string fqn = fullyQualifiedName( d, n );
+	bool inplace = false;
+	if ( !config.exists( _path + ":save_as" ) ){
+		LOG_F( INFO, "Scaling in place %s", fqn.c_str() );
+		inplace = true;
+	}
+
+	
 	TH1 * h = findHistogram( _path, 0 );
 	if ( nullptr == h ) {
 		// ERRORC( "Could not find histogram " << quote( d + "/" + n ) );
 		return;
 	}
 	string nn = config.getXString( _path + ":save_as" );
-	TH1 * hOther = (TH1*)h->Clone( nn.c_str() );
+
+	TH1 * hOther = h;
+	
+	if ( false == inplace  )
+		hOther = (TH1*)h->Clone( nn.c_str() );
 
 	double factor = config.getDouble( _path + ":factor", 1.0 );
 	string opt    = config.getXString( _path +":opt", "" );
 
 	hOther->Scale( factor, opt.c_str() );
-	globalHistos[nn] = hOther;
+
+	if ( false == inplace )
+		globalHistos[nn] = hOther;
+}
+
+void VegaXmlPlotter::exec_transform_Normalize( string _path ){
+	DSCOPE();
+	// TODO:
+	// add option to normalize in range given by x1, x2 or b1, b2 etc.
+
+	string d = config.getXString( _path + ":data" );
+	string n = config.getXString( _path + ":name" );
+	string fqn = fullyQualifiedName( d, n );
+	bool inplace = false;
+	if ( !config.exists( _path + ":save_as" ) ){
+		LOG_F( INFO, "Normalizing in place %s", fqn.c_str() );
+		inplace = true;
+	}
+
+	
+	TH1 * h = findHistogram( _path, 0 );
+	if ( nullptr == h ) {
+		// ERRORC( "Could not find histogram " << quote( d + "/" + n ) );
+		return;
+	}
+	string nn = config.getXString( _path + ":save_as" );
+
+	TH1 * hOther = h;
+	
+	if ( false == inplace  )
+		hOther = (TH1*)h->Clone( nn.c_str() );
+
+	hOther->Scale( 1.0 / h->Integral() );
+
+	if ( false == inplace )
+		globalHistos[nn] = hOther;
 }
 
 void VegaXmlPlotter::exec_transform_Draw( string _path ){

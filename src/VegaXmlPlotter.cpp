@@ -46,6 +46,7 @@ void VegaXmlPlotter::init(){
 
 	handle_map[ "Histo"        ] = &VegaXmlPlotter::exec_Histo;
 	handle_map[ "Graph"        ] = &VegaXmlPlotter::exec_Graph;
+	handle_map[ "TF1"          ] = &VegaXmlPlotter::exec_TF1;
 
 	handle_map[ "Canvas"       ] = &VegaXmlPlotter::exec_Canvas;
 	handle_map[ "Pad"          ] = &VegaXmlPlotter::exec_Pad;
@@ -63,6 +64,7 @@ void VegaXmlPlotter::init(){
 	handle_map[ "Divide"       ] = &VegaXmlPlotter::exec_transform_Divide;
 	handle_map[ "Rebin"        ] = &VegaXmlPlotter::exec_transform_Rebin;
 	handle_map[ "Scale"        ] = &VegaXmlPlotter::exec_transform_Scale;
+	handle_map[ "Normalize"    ] = &VegaXmlPlotter::exec_transform_Normalize;
 	handle_map[ "Draw"         ] = &VegaXmlPlotter::exec_transform_Draw;
 	handle_map[ "Clone"        ] = &VegaXmlPlotter::exec_transform_Clone;
 	handle_map[ "Smooth"       ] = &VegaXmlPlotter::exec_transform_Smooth;
@@ -153,25 +155,6 @@ void VegaXmlPlotter::make(){
 		LOG_F( INFO, "Write to %s completed", config.getString( "TFile:url" ).c_str() );
 	}
 } // make
-
-map<string, shared_ptr<TF1> > VegaXmlPlotter::makeTF(string _path){
-	DSCOPE();
-	vector<string> paths = config.childrenOf( _path );
-	map< string, shared_ptr<TF1> > funcs;
-	for ( string path : paths ){
-		string name = config.getString( path + ":name" );
-		string tag = config.tagName(path);
-		if ( "TF1" == tag || "XmlFunction" == tag ){
-			funcs[ name ] = makerTF.make( config, path );
-
-			if (nullptr == funcs[ name ]){
-				LOG_F( INFO, "need to load TF! from file" );
-			}
-
-		}
-	}
-	return funcs;
-}
 
 void VegaXmlPlotter::loadDataFile( string _path ){
 	DSCOPE();
@@ -311,12 +294,12 @@ TObject* VegaXmlPlotter::findObject( string _path ){
 
 	// finally look for histos we made and named in the ttree drawing
 	if ( globalHistos.count( name ) > 0 && globalHistos[ name ] ){
-		LOG_F( INFO, "Lokking in globalHistos" );
+		LOG_F( INFO, "Looking in globalHistos" );
 		return globalHistos[ name ];
 	}
 
 	if ( globalGraphs.count( name ) > 0 && globalGraphs[ name ] ){
-		LOG_F( INFO, "Lokking in globalGraphs" );
+		LOG_F( INFO, "Looking in globalGraphs" );
 		return globalGraphs[ name ];
 	}
 
@@ -404,88 +387,6 @@ TH1* VegaXmlPlotter::findHistogram( string _path, int iHist, string _mod ){
 	return nullptr;
 } //findHistogram
 
-TGraph* VegaXmlPlotter::makeGraph( string _path, string &fqn ){
-	DSCOPE();
-	RooPlotLib rpl;
-
-	TObject * obj = findObject( _path );
-	LOG_F( INFO, "Object = %p", obj );
-	TGraph * g = dynamic_cast<TGraph*>( obj );
-
-	if ( nullptr == g ) {
-		LOG_F( ERROR, "Cannot get Graph @ %s", _path.c_str() );
-		return nullptr;
-	}
-	LOG_F( INFO, "Found Graph at %s", _path.c_str() );
-
-	// set meta info
-	config.set( "ClassName", g->ClassName() );
-
-	string name = config.getXString( _path + ":name" );
-	string data = config.getXString( _path + ":data" );
-	
-	fqn = fullyQualifiedName( data, name );
-
-
-	rpl.style( g ).set( config, _path ).set( config, _path + ":style" ).set( config, _path + ".style" ).draw();
-
-	return g;
-} // makeGraph
-
-TH1* VegaXmlPlotter::makeHistogram( string _path, string &fqn ){
-	DSCOPE();
-	RooPlotLib rpl;
-
-	TH1* h = findHistogram( _path, 0 );
-	LOG_F( INFO, "Found Histogram @%s = %p", _path.c_str(), h );
-	
-
-	for (auto kv : globalHistos ){
-		//INFOC( "mem pool : " << kv.first );
-	}
-
-	if ( nullptr == h ) return nullptr;
-
-	config.set( "ClassName", h->ClassName() );
-	DLOG( "ClassName %s", config[ "ClassName" ].c_str() );
-	
-	string name = config.getXString( _path + ":name" );
-	string data = config.getXString( _path + ":data" );
-	
-	fqn = fullyQualifiedName( data, name );
-
-	float nI = h->Integral();
-	string normp = config.oneOf( _path + ".Norm", _path + ":norm" );
-	if ( "" != normp && nI > 0 && config.getBool( normp, true ) == true){
-		float normC = config.get<float>( normp, 0 );
-		if ( normC <= 0 )
-			normC = 1.0;
-		LOG_F( INFO, "Normalize: %s to %f / %f", h->GetName(), normC, nI );
-		h->Scale( normC / nI );
-	}
-
-	string styleRef = config.getXString( _path + ":style" );
-	//INFOC( "Style Ref : " << styleRef );
-	if ( config.exists( styleRef ) ){
-		rpl.style( h ).set( config, styleRef );
-	}
-
-	rpl.style( h ).set( config, _path ).set( config, _path + ".style" ).draw();
-
-	if ( config.exists( _path +":after_draw" ) ){
-		string cmd = ".x " + config[_path+":after_draw"] + "( " + h->GetName() + " )";
-		LOG_F( INFO, "Executing: %s", cmd.c_str()  );
-		gROOT->ProcessLine( cmd.c_str() );
-	}
-
-	TPaveStats *st = (TPaveStats*)h->FindObject("stats");
-	if ( nullptr != st  ){
-		positionOptStats( _path, st );
-		// st->SetX1NDC( 0.7 ); st->SetX2NDC( 0.975 );
-	}
-	return h;
-} // makeHistogram
-
 TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
 	DSCOPE();
 
@@ -527,11 +428,12 @@ TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
 	long N = std::numeric_limits<long>::max();
 	if ( config.exists( _path + ":N" ) ){
 		N = config.get<long>( _path + ":N" );
+		LOG_S(INFO) << "TTree->Draw( \"" << drawCmd << "\", \"" << selectCmd << "\"" << "\", \"" << drawOpt << "\"," << N << " );";
+	} else {
+		LOG_S(INFO) << "TTree->Draw( \"" << drawCmd << "\", \"" << selectCmd << "\"" << "\", \"" << drawOpt << "\", );";
 	}
 
-	LOG_S(INFO) << "TTree->Draw( \"" << drawCmd << "\", \"" << selectCmd << "\"" << "\", \"" << drawOpt << "\"," << N << " );";
 	chain->Draw( drawCmd.c_str(), selectCmd.c_str(), drawOpt.c_str(), N );
-
 	TH1 *h = (TH1*)gPad->GetPrimitive( hName.c_str() );
 
 	if ( config.exists( _path +":after_draw" ) ){

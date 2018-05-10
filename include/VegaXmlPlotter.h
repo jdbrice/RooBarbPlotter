@@ -50,7 +50,7 @@ protected:
 
 	map<string, TH1*> histos;
 	map<string, TGraph*> graphs;
-	map<string, shared_ptr<TF1>> funcs;
+	map<string, TF1*> funcs;
 	TH1C * current_frame = nullptr;
 
 	XmlCanvas * xcanvas;
@@ -77,6 +77,7 @@ public:
 	virtual void exec_ExportConfig( string _path );
 	virtual void exec_Histo( string _path );
 	virtual void exec_Graph( string _path );
+	virtual void exec_TF1( string _path );
 	virtual void exec_TLine( string _path );
 	virtual void exec_Rect( string _path );
 	virtual void exec_TLatex( string _path );
@@ -95,6 +96,7 @@ public:
 	virtual void exec_transform_Divide( string _path);
 	virtual void exec_transform_Rebin( string _path);
 	virtual void exec_transform_Scale( string _path);
+	virtual void exec_transform_Normalize( string _path);
 	virtual void exec_transform_Draw( string _path);
 	virtual void exec_transform_Clone( string _path );
 	virtual void exec_transform_Smooth( string _path );
@@ -137,9 +139,9 @@ public:
 	virtual TH1* findHistogram( string _data, string _name );
 	virtual TH1* findHistogram( string _path, int iHist, string _mod="" );
 
-	virtual TH1* makeHistogram( string _path, string &fqn );
-	virtual TGraph* makeGraph( string _path, string &fqn );
-	virtual map<string, shared_ptr<TF1> > makeTF( string _path );
+	// virtual TH1* makeHistogram( string _path, string &fqn );
+	// virtual TGraph* makeGraph( string _path, string &fqn );
+	// virtual map<string, shared_ptr<TF1> > makeTF( string _path );
 
 	// Transforms
 	// virtual void makeTransforms();

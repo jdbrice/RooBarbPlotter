@@ -308,6 +308,38 @@ void VegaXmlPlotter::exec_Graph( string _path ){
 
 } // exec_Graph
 
+void VegaXmlPlotter::exec_TF1( string _path ){
+	DSCOPE();
+	RooPlotLib rpl;
+
+	XmlFunction xf;
+	xf.set( config, _path );
+
+	TF1 * f = xf.getTF1().get();
+	if ( nullptr == f ) {
+		LOG_F( ERROR, "Cannot make TF1 @ %s", _path.c_str() );
+		return;
+	}
+	f = (TF1*)f->Clone( (f->GetTitle() + string("_clone")).c_str() );
+
+	
+	LOG_F( INFO, "%s", f->GetTitle() );
+	LOG_F( INFO, "Eval f(0)=%f", f->Eval( 1.0 ) );
+
+	// set meta info
+	config.set( "ClassName", xf.getTF1()->ClassName() );
+
+	string name = config.getXString( _path + ":name" );
+	string data = config.getXString( _path + ":data" );
+	
+	string fqn = fullyQualifiedName( data, name );
+
+	rpl.style( f ).set( config, _path ).set( config, _path + ":style" ).set( config, _path + ".style" ).draw( "same" );
+
+	funcs[ nameOnly(fqn) ]  = f;
+	funcs[ fqn ] 			= f;
+} // exec_TF1
+
 void VegaXmlPlotter::exec_TLine( string _path){
 	DSCOPE();
 
@@ -533,11 +565,9 @@ void VegaXmlPlotter::exec_TLegend( string _path ){
 		if ( funcs.count( name ) <= 0 || funcs[ name ] == nullptr ) {
 			continue;
 		}
-		TF1 * f = (TF1*)funcs[ name ]->Clone( ("graph_legend_" + name).c_str() );
+		TF1 * f = (TF1*)funcs[ name ]->Clone( ("func_legend_" + name).c_str() );
 
-
-		//INFO( classname(), "Entry histo=" << h );
-		string t = config.getXString(  entryPath + ":title", name );
+		string t   = config.getXString(  entryPath + ":title", name );
 		string opt = config.getXString(  entryPath + ":opt", "l" );
 
 		rpl.style( f ).set( config, entryPath );
@@ -553,21 +583,20 @@ void VegaXmlPlotter::exec_TLegend( string _path ){
 		}
 	}
 
-	if ( config.exists( _path + ":text_size" ) ){
-		leg->SetTextSize( config.getDouble( _path + ":text_size" ) );
-	}
-	if ( config.exists( _path + ":text_point" ) ){
-		leg->SetTextSize( config.getDouble( _path + ":text_point" ) / 360.0 );
-	}
-	if ( config.exists( _path + ":border_size" ) ){
-		leg->SetBorderSize( config.getDouble( _path + ":border_size" ) );
-	}
-	if ( config.exists( _path + ":fill_color" ) ){
-		leg->SetFillColor( color( config.getString( _path + ":fill_color" ) ) );
-	}
-	if ( config.exists( _path + ":fill_style" ) ){
-		//INFOC( "FillStyle=" << config.getInt( _path + ":fill_style" ) );
-		leg->SetFillStyle( config.getInt( _path + ":fill_style" ) );
+	vector< string > attr = config.attributesOf( _path );
+	for ( unsigned int i = 0; i < attr.size(); i++ ){
+		// attr is full paths to attribute
+		string nattr = RooPlotLib::normalizeAttribute( config.attributeName(attr[i]) );
+		if ( "textsize" == nattr )
+			leg->SetTextSize( config.getDouble( attr[i] ) );
+		if ( "textpoint" == nattr )
+			leg->SetTextSize( config.getDouble( attr[i] ) / 360.0 );
+		if ( "bordersize" == nattr )
+			leg->SetBorderSize( config.getDouble( attr[i] ) );
+		if ( "fillcolor" == nattr )
+			leg->SetFillColor( color( config.getString( attr[i] ) ) );
+		if ( "fillstyle" == nattr )
+			leg->SetFillStyle( config.getInt( _path + ":fill_style" ) );
 	}
 
 	leg->Draw( );
