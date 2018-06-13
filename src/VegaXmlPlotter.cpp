@@ -411,6 +411,8 @@ TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
 		return nullptr; 
 	}
 	
+	LOG_F( INFO, "Using name=%s, data=%s", quote(hName).c_str(), quote(data).c_str() );
+
 	string title = config.getXString( _path + ":title" );
 	string drawCmd = config.getXString( _path + ":draw" ) + " >> " + hName;
 	string selectCmd = config.getXString( _path + ":select" );
@@ -428,9 +430,9 @@ TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
 	long N = std::numeric_limits<long>::max();
 	if ( config.exists( _path + ":N" ) ){
 		N = config.get<long>( _path + ":N" );
-		LOG_S(INFO) << "TTree->Draw( \"" << drawCmd << "\", \"" << selectCmd << "\"" << "\", \"" << drawOpt << "\"," << N << " );";
+		LOG_S(INFO) << "TTree->Draw( " << quote(drawCmd) << ", " << quote(selectCmd) << ", " << quote(drawOpt) << ", " << N << " );";
 	} else {
-		LOG_S(INFO) << "TTree->Draw( \"" << drawCmd << "\", \"" << selectCmd << "\"" << "\", \"" << drawOpt << "\", );";
+		LOG_S(INFO) << "TTree->Draw( " << quote(drawCmd) << ", " << quote(selectCmd) << ", " << quote(drawOpt) << " );";
 	}
 
 	chain->Draw( drawCmd.c_str(), selectCmd.c_str(), drawOpt.c_str(), N );

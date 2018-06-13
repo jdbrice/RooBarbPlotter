@@ -431,6 +431,7 @@ void VegaXmlPlotter::exec_transform_Scale( string _path ){
 	double factor = config.getDouble( _path + ":factor", 1.0 );
 	string opt    = config.getXString( _path +":opt", "" );
 
+	LOG_F( INFO, "Scale( %0.3f, %s )", factor, opt.c_str() );
 	hOther->Scale( factor, opt.c_str() );
 
 	if ( false == inplace )
@@ -668,11 +669,12 @@ void VegaXmlPlotter::exec_transform_Assign( string _path ){
 
 	LOG_F( INFO, "gROOT->ProcessLine( \"%s\" )", expr.c_str() );
 	
-	TNamed *tmp = new TNamed( "vestibule", "tmp storage"  );
-	gDirectory->Add( tmp );
+	// TNamed *tmp = new TNamed( "vestibule", "tmp storage"  );
+	// gDirectory->Add( tmp );
 	
 	
 	int error = 0;
+	// LOG_F( INFO, "gDirectory=%p, gROOT=%p", gDirectory, gROOT );
 
 	// Super crazy shit
 	// first include sstr header (if not done already)
@@ -685,24 +687,28 @@ void VegaXmlPlotter::exec_transform_Assign( string _path ){
 		gROOT->ProcessLine( "#include \"sstream\" " );
 		initializedGROOT = true;
 	}
-	
+
 	gROOT->ProcessLine( "std::stringstream sstr;" );
-	gROOT->ProcessLine( "TNamed * tn = vestibule;");
-	gROOT->ProcessLine( "tn->GetTitle();" );
+	// gROOT->ProcessLine( "gDirectory" );
+	gROOT->ProcessLine( ("TNamed * tn = new TNamed( \"" + varname + "\", \"tmp\" );").c_str() ) ;
+	gROOT->ProcessLine( "gDirectory->Add( tn );" );
+	// gROOT->ProcessLine( expr.c_str() );
 	expr = "sstr << " + expr + ";";
 	gROOT->ProcessLine( expr.c_str() );
-	gROOT->ProcessLine( "tn->SetTitle( sstr.str().c_str() )" );
+	gROOT->ProcessLine( "tn->SetTitle( sstr.str().c_str() );" );
 	
-
+	TNamed * tmp = ((TNamed*)gROOT->FindObject( varname.c_str() ));
+	if ( nullptr == tmp ){
+		LOG_F( ERROR, "Failed to memory map" );
+		return;
+	}
+	LOG_F( INFO, "tn->GetTitle()=%s", tmp->GetTitle() );
 	
 	// 
 	LOG_F( INFO, "ERROR = %d", error );
 	LOG_F( INFO, "TNamed.title = %s", tmp->GetTitle() );
 	LOG_F( INFO, "ASSIGN [%s] = [%s]", varname.c_str(), tmp->GetTitle() );
 	config.set( varname, string(tmp->GetTitle()) );
-
-	// delete it
-	delete tmp;
 
 }
 
