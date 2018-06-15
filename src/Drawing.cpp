@@ -133,7 +133,7 @@ void VegaXmlPlotter::exec_Plot( string _path ) {
 	// 	gStyle->SetPalette( config.getInt( _path + ".Palette" ) );
 	// }
 
-	vector<string> tlp = { "Scope", "Loop", "Histo", "Graph", "TF1", "TLine", "TLatex" };
+	vector<string> tlp = { "Margins", "Scope", "Loop", "Histo", "Graph", "TF1", "TLine", "TLatex" };
 	vector<string> paths = config.childrenOf( _path, 1 );
 	for ( string p : paths ){
 		string tag = config.tagName( p );
@@ -596,7 +596,7 @@ void VegaXmlPlotter::exec_TLegend( string _path ){
 		if ( "fillcolor" == nattr )
 			leg->SetFillColor( color( config.getString( attr[i] ) ) );
 		if ( "fillstyle" == nattr )
-			leg->SetFillStyle( config.getInt( _path + ":fill_style" ) );
+			leg->SetFillStyle( config.getInt( attr[i] ) );
 	}
 
 	leg->Draw( );
