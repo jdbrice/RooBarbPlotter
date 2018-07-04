@@ -133,7 +133,7 @@ void VegaXmlPlotter::exec_Plot( string _path ) {
 	// 	gStyle->SetPalette( config.getInt( _path + ".Palette" ) );
 	// }
 
-	vector<string> tlp = { "Margins", "Scope", "Loop", "Histo", "Graph", "TF1", "TLine", "TLatex" };
+	vector<string> tlp = { "Margins", "Scope", "Loop", "Histo", "Graph", "TF1", "TLine", "TLatex", "Rect" };
 	vector<string> paths = config.childrenOf( _path, 1 );
 	for ( string p : paths ){
 		string tag = config.tagName( p );
@@ -274,7 +274,7 @@ void VegaXmlPlotter::exec_Histo( string _path ){
 		// st->SetX1NDC( 0.7 ); st->SetX2NDC( 0.975 );
 	}
 
-
+	LOG_F( INFO, "Indexing histo[%s] and histo[%s]", quote(nameOnly(fqn)).c_str(), quote(fqn).c_str() );
 	histos[ nameOnly(fqn) ] = h;
 	histos[ fqn ] 			= h;
 
@@ -305,6 +305,8 @@ void VegaXmlPlotter::exec_Graph( string _path ){
 
 
 	rpl.style( g ).set( config, _path ).set( config, _path + ":style" ).set( config, _path + ".style" ).draw();
+	graphs[ name ] = g;
+	graphs[ fqn ] = g;
 
 } // exec_Graph
 
@@ -529,6 +531,7 @@ void VegaXmlPlotter::exec_TLegend( string _path ){
 		string name = config.getXString( entryPath + ":name" );
 		
 		if ( histos.count( name ) <= 0 || histos[ name ] == nullptr ) {
+			LOG_F( INFO, "Could not add Legend entry for name=%s", quote( name ).c_str() );
 			continue;
 		}
 		TH1 * h = (TH1*)histos[ name ]->Clone( ("hist_legend_" + name).c_str() );
