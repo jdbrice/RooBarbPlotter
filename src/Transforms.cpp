@@ -307,10 +307,11 @@ void VegaXmlPlotter::exec_transform_Divide( string _path){
 	TH1 * hNum = findHistogram( _path, 0, "A" );
 	TH1 * hDen = findHistogram( _path, 0, "B" );
 	if ( nullptr == hNum || nullptr == hDen ) {
-		// ERRORC( "Could not find histogram" );
+		LOG_F( ERROR, "Numerator=%p, Denominator=%p, something is NULL", hNum, hDen );
 		return;
 	}
 
+	LOG_F( INFO, "%s = %s / %s", nn.c_str(), hNum->GetName(), hDen->GetName() );
 	TH1 * hOther = (TH1*) hNum->Clone( nn.c_str() );
 	hOther->Divide( hDen );
 	globalHistos[nn] = hOther;
@@ -332,7 +333,7 @@ void VegaXmlPlotter::exec_transform_Rebin( string _path ){
 	TH1 * h = findHistogram( _path, 0 );
 	if ( nullptr == h ) {
 		// ERRORC( "Could not find histogram " << quote( d + "/" + n ) );
-		LOG_F( ERROR, "Could not find histogram " );
+		LOG_F( ERROR, "Could not find histogram @ %s, name=%s", _path.c_str(), n.c_str() );
 		return;
 	}
 
@@ -455,7 +456,7 @@ void VegaXmlPlotter::exec_transform_Normalize( string _path ){
 	
 	TH1 * h = findHistogram( _path, 0 );
 	if ( nullptr == h ) {
-		// ERRORC( "Could not find histogram " << quote( d + "/" + n ) );
+		LOG_F( ERROR, "Could not find histogram %s", quote( d + "/" + n ).c_str() );
 		return;
 	}
 	string nn = config.getXString( _path + ":save_as" );
@@ -467,8 +468,7 @@ void VegaXmlPlotter::exec_transform_Normalize( string _path ){
 
 	hOther->Scale( 1.0 / h->Integral() );
 
-	if ( false == inplace )
-		globalHistos[nn] = hOther;
+	globalHistos[nn] = hOther;
 }
 
 void VegaXmlPlotter::exec_transform_Draw( string _path ){
@@ -575,6 +575,7 @@ void VegaXmlPlotter::exec_transform_BinLabels( string _path ){
 void VegaXmlPlotter::exec_transform_Clone( string _path ){
 
 	if ( !config.exists( _path + ":save_as" ) ){
+		LOG_F( ERROR, "<Clone/> Must have a save_as attribute" );
 		return;
 	}
 
@@ -583,6 +584,7 @@ void VegaXmlPlotter::exec_transform_Clone( string _path ){
 
 	TH1 * h = findHistogram( _path, 0 );
 	if ( nullptr == h ) {
+		LOG_F( ERROR, "could not find histo %s %s", d.c_str(), n.c_str() );
 		return;
 	}
 
@@ -633,17 +635,20 @@ void VegaXmlPlotter::exec_transform_Sumw2( string _path ){
 
 	TH1 * h = findHistogram( _path, 0 );
 	if ( nullptr == h ) {
-		LOG_F( ERROR, "could not find histogram" );
+		LOG_F( ERROR, "could not find histogram @ %s", _path.c_str() );
 		return;
 	}
 	config.set( "uname", underscape(n) );
 	TH1 * hOther = h;
 	string nn = nameOnly( n );
-	if ( !config.exists( _path + ":save_as" ) ){
-		LOG_F( INFO, "Sumw2 in place" );
+
+	if ( config.exists( _path + ":save_as" ) ){
 		nn = config.getXString( _path + ":save_as" );
 		hOther = (TH1*)h->Clone( nn.c_str() );
+	} else {
+		LOG_F( INFO, "Sumw2 in place" );
 	}
+	LOG_F( INFO, "Calling Sumw2()" );
 	hOther->Sumw2();
 	globalHistos[nn] = hOther;
 }
