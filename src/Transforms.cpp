@@ -204,21 +204,29 @@ void VegaXmlPlotter::exec_transform_ProjectionY( string _path){
 		return;
 	}
 	string nn = config.getXString( _path + ":save_as" );
+	double sx1 = std::numeric_limits<double>::quiet_NaN();
+	double sx2 = std::numeric_limits<double>::quiet_NaN();
 
 	int b1 = config.getInt( _path + ":b1", 0 );
 	if ( config.exists( _path + ":x1" ) ){
 		double x1 = config.getDouble( _path + ":x1", -1 );
-		// INFOC( "ProjectionY x1=" << x1 );
-		b1 = ((TH2*)h)->GetYaxis()->FindBin( x1 );
+		b1 = ((TH2*)h)->GetXaxis()->FindBin( x1 );
+		sx1 = x1;
 	}
+
 	
 	int b2 = config.getInt( _path + ":b2", -1 );
 	if ( config.exists( _path + ":x2" ) ){
 		double x2 = config.getDouble( _path + ":x2", -1 );
-		// INFOC( "ProjectionY x2=" << x2 );
-		b2 = ((TH2*)h)->GetYaxis()->FindBin( x2 );
+		b2 = ((TH2*)h)->GetXaxis()->FindBin( x2 );
+		sx2 = x2;
 	}
-	//INFOC( "ProjectionX [" << nn << "] b1=" << b1 << ", b2="<<b2 );
+
+	if ( sx1 != std::numeric_limits<double>::quiet_NaN() && sx2 != std::numeric_limits<double>::quiet_NaN() ){
+		LOG_F( INFO, "ProjectionX [ %s ] b=(%d, %d), x=(%f, %f)", nn.c_str(), b1, b2, sx1, sx2 );
+	} else {
+		LOG_F( INFO, "ProjectionX [ %s ] b=(%d, %d)", nn.c_str(), b1, b2 );
+	}
 
 	TH1 * hOther = ((TH2*)h)->ProjectionY( nn.c_str(), b1, b2 );
 	h = hOther;
