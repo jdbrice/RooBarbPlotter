@@ -67,6 +67,16 @@ void VegaXmlPlotter::exec_TFile( string _path ){
 	dataOut = new TFile( url.c_str(), "RECREATE" );
 }
 
+void VegaXmlPlotter::exec_Script( string _path ){
+	DSCOPE();
+	vector<string> scripts = config.getStringVector( _path );
+	for ( string s : scripts ){
+		LOG_F( INFO, "gROOT->ProcessLine( \".L %s\" )", s.c_str() );
+		gROOT->ProcessLine( (".L " + s).c_str() );
+	}
+ 	
+}
+
 void VegaXmlPlotter::exec_children( string _path ){
 	DSCOPE();
 	vector<string> paths = config.childrenOf( _path, 1 );
@@ -133,7 +143,7 @@ void VegaXmlPlotter::exec_Plot( string _path ) {
 	// 	gStyle->SetPalette( config.getInt( _path + ".Palette" ) );
 	// }
 
-	vector<string> tlp = { "Margins", "Scope", "Loop", "Histo", "Graph", "TF1", "TLine", "TLatex", "Rect" };
+	vector<string> tlp = { "Margins", "StatBox", "Scope", "Loop", "Histo", "Graph", "TF1", "TLine", "TLatex", "Rect" };
 	vector<string> paths = config.childrenOf( _path, 1 );
 	for ( string p : paths ){
 		string tag = config.tagName( p );
@@ -223,6 +233,31 @@ void VegaXmlPlotter::exec_Export( string _path ){
 	}
 } // exec_Export
 
+
+void VegaXmlPlotter::exec_StatBox( string _path ){
+	DSCOPE();
+	int value = config.get<int>( _path + ":v", config.get<int>( _path + ":value", 111 ) );
+	float w = config.get<float>( _path + ":w", 0.3 );
+	float h = config.get<float>( _path + ":h", 0.3 );
+	vector<float> pos = config.getFloatVector( _path + ":pos" );
+	if ( pos.size() < 2 ){
+		// it will def be length 2
+		pos.push_back( -1 ); pos.push_back( -1 );
+	}
+
+	gStyle->SetOptStat( value );
+	if ( pos[0] > -1 )
+		gStyle->SetStatX( pos[0] );
+	if ( pos[1] > -1 )
+		gStyle->SetStatY( pos[1] );
+
+	gStyle->SetStatW( w );
+	gStyle->SetStatH( h );
+
+	LOG_F( INFO, "StatBox( %d ) @ (x=%f, y=%f) with (w=%f, h=%f)", value, pos[0], pos[1], w, h );
+
+}
+
 void VegaXmlPlotter::exec_Histo( string _path ){
 	DSCOPE();
 	RooPlotLib rpl;
@@ -268,11 +303,14 @@ void VegaXmlPlotter::exec_Histo( string _path ){
 		gROOT->ProcessLine( cmd.c_str() );
 	}
 
-	TPaveStats *st = (TPaveStats*)h->FindObject("stats");
-	if ( nullptr != st  ){
-		positionOptStats( _path, st );
-		// st->SetX1NDC( 0.7 ); st->SetX2NDC( 0.975 );
-	}
+	TPaveStats *st = (TPaveStats*)h->GetListOfFunctions()->FindObject("stats");
+	// if ( nullptr != st  ){
+	// 	LOG_F( INFO, "Exec positionOptStats( %s, %p )", _path.c_str(), st );
+	// 	positionOptStats( _path, st );
+	// 	// st->SetX1NDC( 0.7 ); st->SetX2NDC( 0.975 );
+	// } else {
+	// 	LOG_F( INFO, "OptStat is NULL" );
+	// }
 
 	LOG_F( INFO, "Indexing histo[%s] and histo[%s]", quote(nameOnly(fqn)).c_str(), quote(fqn).c_str() );
 	histos[ nameOnly(fqn) ] = h;

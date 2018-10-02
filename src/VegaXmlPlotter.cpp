@@ -32,6 +32,7 @@ void VegaXmlPlotter::init(){
 	handle_map[ "TCanvas"      ] = &VegaXmlPlotter::exec_TCanvas;
 	handle_map[ "Data"         ] = &VegaXmlPlotter::exec_Data;
 	handle_map[ "TFile"        ] = &VegaXmlPlotter::exec_TFile;
+	handle_map[ "Script"       ] = &VegaXmlPlotter::exec_Script;
 	handle_map[ "Plot"         ] = &VegaXmlPlotter::exec_Plot;
 	handle_map[ "Loop"         ] = &VegaXmlPlotter::exec_Loop;
 	handle_map[ "Scope"        ] = &VegaXmlPlotter::exec_Loop;
@@ -44,6 +45,7 @@ void VegaXmlPlotter::init(){
 	handle_map[ "TLegend"      ] = &VegaXmlPlotter::exec_TLegend;
 	handle_map[ "Legend"       ] = &VegaXmlPlotter::exec_TLegend;
 
+	handle_map[ "StatBox"      ] = &VegaXmlPlotter::exec_StatBox;
 	handle_map[ "Histo"        ] = &VegaXmlPlotter::exec_Histo;
 	handle_map[ "Graph"        ] = &VegaXmlPlotter::exec_Graph;
 	handle_map[ "TF1"          ] = &VegaXmlPlotter::exec_TF1;
@@ -139,7 +141,7 @@ void VegaXmlPlotter::make(){
 	}
 
 	// Top level nodes
-	vector<string> tlp = { "TCanvas", "Margins", "Plot", "Loop", "Canvas", "Transforms", "Transform" };
+	vector<string> tlp = { "Script", "TCanvas", "Margins", "Plot", "Loop", "Canvas", "Transforms", "Transform" };
 	paths = config.childrenOf( "", 1 );
 	for ( string p : paths ){
 		string tag = config.tagName( p );
@@ -378,8 +380,7 @@ TH1* VegaXmlPlotter::findHistogram( string _path, int iHist, string _mod ){
 	}
 
 	// finally look for histos we made and named in the ttree drawing
-	if ( globalHistos.count( name ) > 0 && globalHistos[ name ] ){
-		//INFOC( "Found histogram in mem pool" );
+	if ( globalHistos.count( name ) > 0 && globalHistos[ name ] ){	
 		return globalHistos[ name ];
 	}
 
@@ -450,6 +451,8 @@ TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
 
 	return h;
 } // makeHistoFromDataTree
+
+
 
 void VegaXmlPlotter::positionOptStats( string _path, TPaveStats * st ){
 	DSCOPE();

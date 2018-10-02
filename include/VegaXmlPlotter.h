@@ -75,6 +75,7 @@ public:
 	virtual void exec_Axes( string _path );
 	virtual void exec_Export( string _path );
 	virtual void exec_ExportConfig( string _path );
+	virtual void exec_StatBox( string _path );
 	virtual void exec_Histo( string _path );
 	virtual void exec_Graph( string _path );
 	virtual void exec_TF1( string _path );
@@ -85,6 +86,7 @@ public:
 	virtual void exec_Canvas( string _path );
 	virtual void exec_Margins( string _path );
 	virtual void exec_TFile( string _path );
+	virtual void exec_Script( string _path );
 
 	// Transforms
 	virtual void exec_Transforms( string _path );

@@ -5,11 +5,11 @@ import os
 SConscript('color_SConscript')
 Import( 'env' )
 
-ROOTCFLAGS    	= subprocess.check_output( ['root-config',  '--cflags'] ).rstrip().split( " " )
-ROOTLDFLAGS    	= subprocess.check_output( ["root-config",  "--ldflags"] )
-ROOTLIBS      	= subprocess.check_output( ["root-config",  "--libs"] )
-ROOTGLIBS     	= subprocess.check_output( ["root-config",  "--glibs"] )
-ROOTLIBPATH 	= subprocess.check_output( ["root-config", "--libdir" ] )
+ROOTCFLAGS    	= subprocess.check_output( ['root-config',  '--cflags'] ).rstrip().decode( "utf-8" ).split( " " )
+ROOTLDFLAGS    	= subprocess.check_output( ["root-config",  "--ldflags"] ).decode( "utf-8" )
+ROOTLIBS      	= subprocess.check_output( ["root-config",  "--libs"] ).decode( "utf-8" )
+ROOTGLIBS     	= subprocess.check_output( ["root-config",  "--glibs"] ).decode( "utf-8" )
+ROOTLIBPATH 	= subprocess.check_output( ["root-config", "--libdir" ] ).decode( "utf-8" )
 ROOT_SYS 		= os.environ[ "ROOTSYS" ]
 JDB_LIB			= os.environ[ "JDB_LIB" ]
 JDB_LIB_NAME 	= 'libRooBarb.a'

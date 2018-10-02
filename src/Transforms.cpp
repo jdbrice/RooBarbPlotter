@@ -356,6 +356,9 @@ void VegaXmlPlotter::exec_transform_Rebin( string _path ){
 		} else {
 			bx.load( config, _path + ":bins_x" );
 		}
+		if ( 0 == bx.nBins() ){
+			LOG_F( WARNING, "Cannot make x bins" );
+		}
 	}
 	if ( config.exists( _path +":bins_y" )  ){
 		if ( config.exists( config.getXString( _path+":bins_y" ) ) ){
@@ -381,6 +384,7 @@ void VegaXmlPlotter::exec_transform_Rebin( string _path ){
 
 
 	if ( nDim == 1 && bx.nBins() > 0 ){
+		LOG_F( INFO, "Rebin1D of %s -> %s  using bins %s", n.c_str(), nn.c_str(), bx.toString().c_str() );
 		hOther = h->Rebin( bx.nBins(), nn.c_str(), bx.bins.data() );
 		globalHistos[nn] = hOther;
 	} else if ( nDim == 1 ){
@@ -460,7 +464,6 @@ void VegaXmlPlotter::exec_transform_Normalize( string _path ){
 		LOG_F( INFO, "Normalizing in place %s", fqn.c_str() );
 		inplace = true;
 	}
-
 	
 	TH1 * h = findHistogram( _path, 0 );
 	if ( nullptr == h ) {
@@ -474,7 +477,16 @@ void VegaXmlPlotter::exec_transform_Normalize( string _path ){
 	if ( false == inplace  )
 		hOther = (TH1*)h->Clone( nn.c_str() );
 
-	hOther->Scale( 1.0 / h->Integral() );
+	int bx1 = getProjectionBin( _path, h, "x", "1",  1 );
+	int bx2 = getProjectionBin( _path, h, "x", "2", -1 );
+
+	if ( config.exists( _path + ":b1" ) )
+		bx1 = config.getInt( _path + ":b1" );
+	if ( config.exists( _path + ":b2" ) )
+		bx2 = config.getInt( _path + ":b2" );
+
+	LOG_F( INFO, "Normalizing from bin %d to %d", bx1, bx2 );
+	hOther->Scale( 1.0 / h->Integral( bx1, bx2) );
 
 	globalHistos[nn] = hOther;
 }
