@@ -36,14 +36,17 @@ void VegaXmlPlotter::init(){
 	handle_map[ "Plot"         ] = &VegaXmlPlotter::exec_Plot;
 	handle_map[ "Loop"         ] = &VegaXmlPlotter::exec_Loop;
 	handle_map[ "Scope"        ] = &VegaXmlPlotter::exec_Loop;
+	handle_map[ "RangeLoop"    ] = &VegaXmlPlotter::exec_Loop;
 	handle_map[ "Axes"         ] = &VegaXmlPlotter::exec_Axes;
 	handle_map[ "Export"       ] = &VegaXmlPlotter::exec_Export;
 	handle_map[ "ExportConfig" ] = &VegaXmlPlotter::exec_ExportConfig;
 	handle_map[ "TLine"        ] = &VegaXmlPlotter::exec_TLine;
 	handle_map[ "Rect"         ] = &VegaXmlPlotter::exec_Rect;
+	handle_map[ "Ellipse"      ] = &VegaXmlPlotter::exec_Ellipse;
 	handle_map[ "TLatex"       ] = &VegaXmlPlotter::exec_TLatex;
 	handle_map[ "TLegend"      ] = &VegaXmlPlotter::exec_TLegend;
 	handle_map[ "Legend"       ] = &VegaXmlPlotter::exec_TLegend;
+	handle_map[ "Palette"      ] = &VegaXmlPlotter::exec_Palette;
 
 	handle_map[ "StatBox"      ] = &VegaXmlPlotter::exec_StatBox;
 	handle_map[ "Histo"        ] = &VegaXmlPlotter::exec_Histo;
@@ -61,6 +64,8 @@ void VegaXmlPlotter::init(){
 	handle_map[ "Projection"   ] = &VegaXmlPlotter::exec_transform_Projection;
 	handle_map[ "ProjectionX"  ] = &VegaXmlPlotter::exec_transform_ProjectionX;
 	handle_map[ "ProjectionY"  ] = &VegaXmlPlotter::exec_transform_ProjectionY;
+	handle_map[ "FitSlices"    ] = &VegaXmlPlotter::exec_transform_FitSlices;
+	handle_map[ "FitSlice "    ] = &VegaXmlPlotter::exec_transform_FitSlices;
 	handle_map[ "MultiAdd"     ] = &VegaXmlPlotter::exec_transform_MultiAdd;
 	handle_map[ "Add"          ] = &VegaXmlPlotter::exec_transform_Add;
 	handle_map[ "Divide"       ] = &VegaXmlPlotter::exec_transform_Divide;
@@ -77,6 +82,10 @@ void VegaXmlPlotter::init(){
 	handle_map[ "Sumw2"        ] = &VegaXmlPlotter::exec_transform_Sumw2;
 	handle_map[ "ProcessLine"  ] = &VegaXmlPlotter::exec_transform_ProcessLine;
 	handle_map[ "Assign"       ] = &VegaXmlPlotter::exec_transform_Assign;
+	handle_map[ "Format"       ] = &VegaXmlPlotter::exec_transform_Format;
+	handle_map[ "Print"        ] = &VegaXmlPlotter::exec_transform_Print;
+	handle_map[ "Proof"        ] = &VegaXmlPlotter::exec_transform_Proof;
+	handle_map[ "List"         ] = &VegaXmlPlotter::exec_transform_List;
 
 } // init
 
@@ -141,7 +150,7 @@ void VegaXmlPlotter::make(){
 	}
 
 	// Top level nodes
-	vector<string> tlp = { "Script", "TCanvas", "Margins", "Plot", "Loop", "Canvas", "Transforms", "Transform" };
+	vector<string> tlp = { "Script", "TCanvas", "Margins", "Plot", "Loop", "RangeLoop", "Canvas", "Transforms", "Transform" };
 	paths = config.childrenOf( "", 1 );
 	for ( string p : paths ){
 		string tag = config.tagName( p );
@@ -418,6 +427,28 @@ TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
 	string drawCmd = config.getXString( _path + ":draw" ) + " >> " + hName;
 	string selectCmd = config.getXString( _path + ":select" );
 	string drawOpt = config.getString( _path + ":opt" );
+
+
+	// If a title is not given then set the x, y, and z axis titles based on draw command
+	if ( !config.exists( _path + ":title" ) ){
+		string rdraw = config.getXString( _path + ":draw" );
+		size_t n = std::count(rdraw.begin(), rdraw.end(), ':');
+		if ( 0 == n ){
+			title = ";" + rdraw + "; dN/d(" + rdraw + ")";
+		} else if ( 1 == n ){
+			size_t p1 = rdraw.find(':');
+			string yt = rdraw.substr( 0, p1 );
+			string xt = rdraw.substr( p1+1 );
+			title = ";" + xt + ";" + yt;
+		} else if ( 2 == n ){
+			size_t p1 = rdraw.find(':');
+			size_t p2 = rdraw.find(':', p1+1);
+			string zt = rdraw.substr( 0, p1 );
+			string yt = rdraw.substr( p1+1, p2 );
+			string xt = rdraw.substr( p2+1 );
+			title = ";" + xt + ";" + yt + ";" + zt;
+		}
+	}
 	
 	// if bins are given lets assume we need to make the histo first
 	if ( config.exists( _path + ":bins_x" ) ){

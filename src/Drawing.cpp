@@ -14,6 +14,7 @@
 #include "TColor.h"
 #include "TTree.h"
 #include "TString.h"
+#include "TEllipse.h"
 
 // #include "TBufferJSON.h"
 
@@ -103,11 +104,83 @@ void VegaXmlPlotter::exec_Loop( string _path ){
 	string var = "state";
 	string v = "%s";
 
+
+
 	if ( config.exists( _path + ":states" ) )
 		states = config.getStringVector( _path +":states" );
 
 	if ( config.exists( _path + ":var" ) )
 		var = config.getString( _path + ":var" );
+
+	// support arange
+	if ( states.size() == 0 && config.exists( _path + ":arange" ) ){
+		vector<float> pars = config.getFloatVector( _path + ":arange" );
+
+		if ( pars.size() >= 2 ){
+			float step = 1.0;
+			if ( pars.size() > 2  )
+				step = pars[2];
+			LOG_SCOPE_F( INFO, "Loop arange (%f, %f, %f)", pars[0], pars[1], step );
+			for ( float fv = pars[0]; fv < pars[1] - step/2.; fv+=step ){
+				states.push_back( ts( fv ) );
+			}
+		}
+	}
+
+	// support linspace
+	if ( states.size() == 0 && config.exists( _path + ":linspace" ) ){
+		vector<float> pars = config.getFloatVector( _path + ":linspace" );
+		LOG_SCOPE_F( INFO, "Loop linspace (%f, %f, %f)", pars[0], pars[1], pars[2] );
+		if ( pars.size() > 2  ){
+			for ( int i = 0; i < (int)pars[2]+1; i++ ){
+				float fv = pars[0] + ((pars[1] - pars[0]) / ((int)pars[2])) * i;
+				states.push_back( ts( fv ) );
+			}
+		}
+	}
+
+	// suport a range 
+	if ( config.tagName( _path ) == "RangeLoop" ){
+
+		if ( !config.exists( _path + ":vmin" ) ) { LOG_F( WARNING, "<RangeLoop vmin vmax min max width/>"  ); }
+		if ( !config.exists( _path + ":vmax" ) ) { LOG_F( WARNING, "<RangeLoop vmin vmax min max width/>"  ); }
+		if ( !config.exists( _path + ":min" ) ) { LOG_F( WARNING, "<RangeLoop vmin vmax min max width/>"  ); }
+		if ( !config.exists( _path + ":max" ) ) { LOG_F( WARNING, "<RangeLoop vmin vmax min max width/>"  ); }
+
+
+
+		string vmin = config.get<string>( _path + ":vmin" );
+		string vmax = config.get<string>( _path + ":vmax" );
+		string indexName = config.get<string>( _path + ":index", vmin+"_i" );
+
+		HistoBins bx;
+		bx.load( config, _path );
+		if ( 0 == bx.nBins() ){
+			LOG_F( WARNING, "Cannot make x bins" );
+		}
+
+		LOG_F( INFO, "<RangLoop vmin=%s vmax=%s", vmin.c_str(), vmax.c_str() );
+		LOG_F( INFO, "%s", bx.toString().c_str() );
+		LOG_F( INFO, "</RangLoop>" );
+
+		for ( int i = 0; i < bx.bins.size()-1; i++ ){
+			float va = bx.bins[i];
+			float vb = bx.bins[i+1];
+			// DLOG( "Executing range loop %s = %s", var.c_str(), state.c_str() );
+			config.set( vmin, ts(va) );
+			config.set( vmax, ts(vb) );
+
+			DLOG( "Executing Range Loop [%s = %d] (%s=%f, %s=%f)", indexName.c_str(), i, vmin.c_str(), va, vmax.c_str(), vb );
+
+			config.set( indexName, ts(i) );
+
+			exec_children( _path );
+		}
+		return;
+	}
+	
+	
+
 
 	// Used for Transforms or organization
 	if ( states.size() == 0 ){
@@ -116,18 +189,29 @@ void VegaXmlPlotter::exec_Loop( string _path ){
 		exec_children( _path );
 	} else {
 		LOG_SCOPE_F( INFO, "Loop at %s", _path.c_str() );
+		int i = 0;
+		string indexName = config.get<string>( _path + ":index", var + "_i" );
 		for ( string state : states ){
-			DLOG( "Executing loop %s = %s", var.c_str(), state.c_str() );
+			DLOG( "Executing loop %s[%s = %d] = %s", var.c_str(), indexName.c_str(), i, state.c_str() );
 			string value = state;
 			config.set( var, value );
+			config.set( indexName, ts(i) );
 			// vector<string> paths = config.childrenOf( _path, 1 );
 			exec_children( _path );
+			i++;
 		} // loop on states
 	}
 
 	
 
 } // exec_Loop
+
+void VegaXmlPlotter::exec_Palette( string _path ) {
+	gStyle->SetPalette( config.getInt( _path ) );
+	if ( true == config.get<bool>( _path +":invert", false ) ){
+		TColor::InvertPalette();
+	}
+}
 
 void VegaXmlPlotter::exec_Plot( string _path ) {
 	DSCOPE();
@@ -143,7 +227,7 @@ void VegaXmlPlotter::exec_Plot( string _path ) {
 	// 	gStyle->SetPalette( config.getInt( _path + ".Palette" ) );
 	// }
 
-	vector<string> tlp = { "Margins", "StatBox", "Scope", "Loop", "Histo", "Graph", "TF1", "TLine", "TLatex", "Rect" };
+	vector<string> tlp = { "Margins", "StatBox", "Scope", "Loop", "Histo", "Graph", "TF1", "TLine", "TLatex", "Rect", "Ellipse", "Assign", "Format", "Palette" };
 	vector<string> paths = config.childrenOf( _path, 1 );
 	for ( string p : paths ){
 		string tag = config.tagName( p );
@@ -237,6 +321,7 @@ void VegaXmlPlotter::exec_Export( string _path ){
 void VegaXmlPlotter::exec_StatBox( string _path ){
 	DSCOPE();
 	int value = config.get<int>( _path + ":v", config.get<int>( _path + ":value", 111 ) );
+	int fit   = config.get<int>( _path + ":f", config.get<int>( _path + ":fit", 111 ) );
 	float w = config.get<float>( _path + ":w", 0.3 );
 	float h = config.get<float>( _path + ":h", 0.3 );
 	vector<float> pos = config.getFloatVector( _path + ":pos" );
@@ -246,6 +331,10 @@ void VegaXmlPlotter::exec_StatBox( string _path ){
 	}
 
 	gStyle->SetOptStat( value );
+	if ( config.exists( _path + ":f" ) || config.exists( _path + ":fit" ) ){
+		gStyle->SetOptFit( fit );
+		LOG_F(  INFO, "OptFit=%d", fit );
+	}
 	if ( pos[0] > -1 )
 		gStyle->SetStatX( pos[0] );
 	if ( pos[1] > -1 )
@@ -430,6 +519,23 @@ void VegaXmlPlotter::exec_Rect( string _path ){
 	c = config.getFloatVector( _path + ":pos" );
 	LOG_F( INFO, "Rect( %0.2f, %0.2f, %0.2f, %0.2f )", c[0], c[1], c[2], c[3] );
 	TBox * rect = new TBox( c[0], c[1], c[2], c[3] );
+	RooPlotLib rpl;
+	rpl.style( rect ).set( config, _path );
+	rect->Draw();
+} // exec_Rect
+
+void VegaXmlPlotter::exec_Ellipse( string _path ){
+	DSCOPE();
+	vector<float> c;
+	c = config.getFloatVector( _path + ":pos" );
+	double x = c[0];
+	double y = c[1];
+	c = config.getFloatVector( _path + ":r" );
+	double rx = c[0];
+	double ry = c[1];
+
+	LOG_F( INFO, "Ellipse( %0.2f, %0.2f, %0.2f, %0.2f )", x, y, rx, ry );
+	TEllipse * rect = new TEllipse( x, y, rx, ry );
 	RooPlotLib rpl;
 	rpl.style( rect ).set( config, _path );
 	rect->Draw();

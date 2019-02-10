@@ -76,7 +76,7 @@ void VegaXmlPlotter::exec_transform_Projection( string _path ){
 	TH3 *h3 = dynamic_cast<TH3*>(h);
 	
 	if ( nullptr == h ) {
-		LOG_F( ERROR, "Histogram is not valid for Transform @ %s", _path.c_str() );
+		LOG_F( ERROR, "NULL Histogram is not valid for Transform @ %s", _path.c_str() );
 		return;
 	}
 
@@ -234,6 +234,42 @@ void VegaXmlPlotter::exec_transform_ProjectionY( string _path){
 	globalHistos[ nn ] = h;
 }
 
+void VegaXmlPlotter::exec_transform_FitSlices( string _path){
+	DSCOPE();
+	if ( !config.exists( _path + ":save_as" ) ){
+		LOG_F( ERROR, "Must provide \"save_as\" attribute to save transformation" );
+		return;
+	}
+
+	string d = config.getXString( _path + ":data" );
+	string n = config.getXString( _path + ":name" );
+	TH1 * h = findHistogram( _path, 0 );
+	if ( nullptr == h ) {
+		LOG_F( ERROR, "Could not find histogram" );
+		return;
+	}
+	
+	string nn = config.getXString( _path + ":save_as" );
+	string axis = config.getString( _path + ":axis" );
+
+
+	TObjArray aSlices;
+	if ( "y" == axis ){
+		LOG_F( INFO, "FitSlicesY" );
+		((TH2*)h)->FitSlicesY(0, 0, -1, 0, "QRN", &aSlices);
+	} else {
+		LOG_F( INFO, "FitSlicesX" );
+		((TH2*)h)->FitSlicesX(0, 0, -1, 0, "QRN", &aSlices);
+	} 
+
+	globalHistos[ (nn + "_0") ] = ((TH1*)aSlices[0]->Clone( (nn + "_0").c_str() ));
+	globalHistos[ (nn + "_1") ] = ((TH1*)aSlices[1]->Clone( (nn + "_1").c_str() ));
+	globalHistos[ (nn + "_2") ] = ((TH1*)aSlices[2]->Clone( (nn + "_2").c_str() ));
+	globalHistos[ (nn + "_3") ] = ((TH1*)aSlices[3]->Clone( (nn + "_3").c_str() ));
+
+	LOG_F( INFO, "Added %s_0, %s_1, %s_2, %s_3", nn.c_str(), nn.c_str(), nn.c_str(), nn.c_str() );
+}
+
 void VegaXmlPlotter::exec_transform_MultiAdd( string _path ){
 	DSCOPE();
 	if ( !config.exists( _path + ":save_as" ) ){
@@ -311,6 +347,9 @@ void VegaXmlPlotter::exec_transform_Divide( string _path){
 	string d = config.getXString( _path + ":data" );
 	string n = config.getXString( _path + ":name" );
 	string nn = config.getXString( _path + ":save_as" );
+	string opt = config.get<string>( _path +":opt", "" );
+	float c1 = config.get<float>( _path +":c1", 1.0 );
+	float c2 = config.get<float>( _path +":c2", 1.0 );
 
 	TH1 * hNum = findHistogram( _path, 0, "A" );
 	TH1 * hDen = findHistogram( _path, 0, "B" );
@@ -321,7 +360,14 @@ void VegaXmlPlotter::exec_transform_Divide( string _path){
 
 	LOG_F( INFO, "%s = %s / %s", nn.c_str(), hNum->GetName(), hDen->GetName() );
 	TH1 * hOther = (TH1*) hNum->Clone( nn.c_str() );
-	hOther->Divide( hDen );
+	
+	if ( opt != "" || c1 != 1.0 || c2 != 1.0 ){
+		LOG_F( INFO, "Divide( num=%s, den=%s, c1=%f, c2=%f, opt=%s )", hNum->GetName(), hDen->GetName(), c1, c2, opt.c_str() );
+		hOther->Divide( hNum, hDen, c1, c2, opt.c_str() );
+	} else {
+		LOG_F( INFO, "Divide( num=%s, den=%s )", hNum->GetName(), hDen->GetName() );
+		hOther->Divide( hDen );
+	}
 	globalHistos[nn] = hOther;
 }
 
@@ -683,12 +729,7 @@ void VegaXmlPlotter::exec_transform_Assign( string _path ){
 	string n = config.getString( _path + ":name" );
 	TH1 * h = findHistogram( _path, 0 );
 
-	if ( nullptr != h ){
-		config.set( "name", h->GetName() );
-		LOG_F( INFO, "Histogram %s available using as h or {name}", h->GetName() );
-		LOG_F( INFO, "TH1 * h = %s", h->GetName() );
-		gROOT->ProcessLine( ( string("TH1 * h = ") + h->GetName()).c_str() );
-	}
+	
 
 	string expr = config.getString( _path + ":expr" );
 
@@ -711,13 +752,27 @@ void VegaXmlPlotter::exec_transform_Assign( string _path ){
 	if ( false == initializedGROOT ){
 		gROOT->ProcessLine( "#include \"sstream\" " );
 		initializedGROOT = true;
+		gROOT->ProcessLine( "std::stringstream sstr;" );
+		gROOT->ProcessLine( ("TNamed * tn = 0;") );
+		gROOT->ProcessLine( "TH1 * h = 0;" ) ;
 	}
 
-	gROOT->ProcessLine( "std::stringstream sstr;" );
+
+	if ( nullptr != h ){
+		config.set( "name", h->GetName() );
+		LOG_F( INFO, "Histogram %s available using as h or {name}", h->GetName() );
+		LOG_F( INFO, "h = %s", h->GetName() );
+		gROOT->ProcessLine( ( string("h = ") + h->GetName()).c_str() );
+		
+	}
+
+	gROOT->ProcessLine( "sstr.str(\"\");" );
 	// gROOT->ProcessLine( "gDirectory" );
-	gROOT->ProcessLine( ("TNamed * tn = new TNamed( \"" + varname + "\", \"tmp\" );").c_str() ) ;
+	gROOT->ProcessLine( ("tn = new TNamed( \"" + varname + "\", \"tmp\" );").c_str() ) ;
 	gROOT->ProcessLine( "gDirectory->Add( tn );" );
 	// gROOT->ProcessLine( expr.c_str() );
+	// gROOT->ProcessLine( "cout << sstr.str() << endl;" );
+	// gROOT->ProcessLine( ("cout << " + expr + " << endl;").c_str() );
 	expr = "sstr << " + expr + ";";
 	gROOT->ProcessLine( expr.c_str() );
 	gROOT->ProcessLine( "tn->SetTitle( sstr.str().c_str() );" );
@@ -735,6 +790,70 @@ void VegaXmlPlotter::exec_transform_Assign( string _path ){
 	LOG_F( INFO, "ASSIGN [%s] = [%s]", varname.c_str(), tmp->GetTitle() );
 	config.set( varname, string(tmp->GetTitle()) );
 
+	delete tmp;
+
+}
+
+void VegaXmlPlotter::exec_transform_Print( string _path ){
+	string msg = config.getString( _path + ":msg" );
+	LOG_F(INFO, "%s", msg.c_str());
+}
+
+void VegaXmlPlotter::exec_transform_Format( string _path ){
+	DSCOPE();
+
+	// where to store the result
+	string varname = config.getString( _path + ":var", config.getString( _path + ":name" ) );
+	string templ = config.getString( _path + ":form",  config.getString( _path + ":format",  config.getString( _path + ":template") ) );
+	string input = config.getString( _path + ":expr" );
+
+	string expr = "TString::Format(\"" + templ + "\", " + input + " )";
+	LOG_F( INFO, "Format( \"%s\", \"%s\" ) ==> %s", templ.c_str(), input.c_str(), varname.c_str() );
+	LOG_F( INFO, "%s", expr.c_str() );
+	
+	
+	
+	
+	int error = 0;
+	// LOG_F( INFO, "gDirectory=%p, gROOT=%p", gDirectory, gROOT );
+
+	// Super crazy shit
+	// first include sstr header (if not done already)
+	// make a stringstream for conversion to char*
+	// Get the TNamed object for passing data
+	// store result of expression in sstr
+	// store result in the title of the TNamed
+	// 
+	if ( false == initializedGROOT ){
+		gROOT->ProcessLine( "#include \"sstream\" " );
+		initializedGROOT = true;
+		gROOT->ProcessLine( "std::stringstream sstr;" );
+		gROOT->ProcessLine( ("TNamed * tn = 0;") );
+	}
+
+	gROOT->ProcessLine( "sstr.str(\"\");" );
+	gROOT->ProcessLine( ("tn = new TNamed( \"" + varname + "\", \"tmp\" );").c_str() ) ;
+	gROOT->ProcessLine( "gDirectory->Add( tn );" );
+	
+	expr = "sstr << " + expr + ";";
+	gROOT->ProcessLine( expr.c_str() );
+	gROOT->ProcessLine( "tn->SetTitle( sstr.str().c_str() );" );
+	
+	TNamed * tmp = ((TNamed*)gROOT->FindObject( varname.c_str() ));
+	if ( nullptr == tmp ){
+		LOG_F( ERROR, "Failed to memory map" );
+		return;
+	}
+	LOG_F( INFO, "tn->GetTitle()=%s", tmp->GetTitle() );
+	
+	// 
+	LOG_F( INFO, "ERROR = %d", error );
+	LOG_F( INFO, "TNamed.title = %s", tmp->GetTitle() );
+	LOG_F( INFO, "ASSIGN [%s] = [%s]", varname.c_str(), tmp->GetTitle() );
+	config.set( varname, string(tmp->GetTitle()) );
+
+	delete tmp;
+
 }
 
 void VegaXmlPlotter::exec_transform_ProcessLine( string _path ){
@@ -749,4 +868,31 @@ void VegaXmlPlotter::exec_transform_ProcessLine( string _path ){
 	LOG_F( INFO, "gROOT->ProcessLine( \"%s\" )", expr.c_str() );
 	gROOT->ProcessLine( expr.c_str() );
 
+}
+
+void VegaXmlPlotter::exec_transform_Proof( string _path ){
+
+	bool setup = config.get<bool>( _path + ":setup", true );
+	string data = config.get<string>( _path + ":data" );
+	bool on = config.get<bool>( _path + ":on", true );
+
+	if ( setup )
+		gROOT->ProcessLine( "TProof::Open( \"\" );" );
+
+	if ( dataChains.count( data ) >= 0 ){
+		dataChains[data]->SetProof( on );
+	}
+
+}
+
+void VegaXmlPlotter::exec_transform_List( string _path ){
+
+	string data = config.get<string>( _path + ":data" );
+
+	if ( dataFiles.count( data ) > 0 ){
+		LOG_F( INFO, "Listing data file: %s", data.c_str() );
+		dataFiles[ data ]->ls();
+	} else {
+		LOG_F( WARNING, "Data file name=%s NOT FOUND", data.c_str() );
+	}
 }

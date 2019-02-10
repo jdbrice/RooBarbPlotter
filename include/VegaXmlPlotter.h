@@ -81,18 +81,21 @@ public:
 	virtual void exec_TF1( string _path );
 	virtual void exec_TLine( string _path );
 	virtual void exec_Rect( string _path );
+	virtual void exec_Ellipse( string _path );
 	virtual void exec_TLatex( string _path );
 	virtual void exec_TLegend( string _path );
 	virtual void exec_Canvas( string _path );
 	virtual void exec_Margins( string _path );
 	virtual void exec_TFile( string _path );
 	virtual void exec_Script( string _path );
+	virtual void exec_Palette( string _path );
 
 	// Transforms
 	virtual void exec_Transforms( string _path );
 	virtual void exec_transform_Projection( string _path );
 	virtual void exec_transform_ProjectionX( string _path);
 	virtual void exec_transform_ProjectionY( string _path);
+	virtual void exec_transform_FitSlices( string _path);
 	virtual void exec_transform_MultiAdd( string _path);
 	virtual void exec_transform_Add( string _path);
 	virtual void exec_transform_Divide( string _path);
@@ -109,6 +112,10 @@ public:
 	virtual void exec_transform_Sumw2( string _path );
 	virtual void exec_transform_ProcessLine( string _path );
 	virtual void exec_transform_Assign( string _path );
+	virtual void exec_transform_Format( string _path );
+	virtual void exec_transform_Print( string _path );
+	virtual void exec_transform_Proof( string _path );
+	virtual void exec_transform_List( string _path );
 
 
 	virtual bool exec( string tag, string _path ){
