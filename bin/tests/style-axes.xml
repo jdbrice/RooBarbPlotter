@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+	<!-- List your data sources -->
+	<!-- Can be files or trees, later access them by name -->
+	<Data name="sample" url="sample_data.root" />
+
+	<Plot>
+		<Axes lsx="-10, 10, 20" lsy="0.1, 5e3, 1" xtitle="x units" ytitle="y units" x-title-point="24" y-title-point="32" x-title-offset="0.7" y-title-offset="0.5" x-label-point="18" y-label-point="18" y-title-align="center" xrange="-10, 10" xticks="4,5,0,false" max="2e3"/>
+
+		<Histo data="sample" name="h1" style="styles.TH1" optstat="0" draw="same" logy="0" axisdigits="3"/>
+
+		<Export url="style-axes.png" />
+	</Plot>
+
+	<styles>
+		<TH1 title="basic TH1 style; X [units]; Y [units]" color="#AF0000" optstat="0"/>
+	</styles>
+
+</config>

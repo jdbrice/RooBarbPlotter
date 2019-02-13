@@ -1,10 +1,8 @@
 #define LOGURU_IMPLEMENTATION 1
 #include "loguru.h"
 
-
 #include "VegaXmlPlotter.h"
 #include "ChainLoader.h"
-#include "XmlCanvas.h"
 #include "XmlHistogram.h"
 #include "Utils.h"
 
@@ -16,14 +14,7 @@
 #include "TColor.h"
 #include "TTree.h"
 
-// #include "TBufferJSON.h"
-
 #include <thread>
-
-// #define VEGADEBUG 1
-
-
-
 
 void VegaXmlPlotter::init(){
 	DSCOPE();
@@ -37,78 +28,162 @@ void VegaXmlPlotter::init(){
 	}
 
 	setDefaultPalette();
-}
 
-void VegaXmlPlotter::make() {
+	handle_map[ "TCanvas"      ] = &VegaXmlPlotter::exec_TCanvas;
+	handle_map[ "Data"         ] = &VegaXmlPlotter::exec_Data;
+	handle_map[ "TFile"        ] = &VegaXmlPlotter::exec_TFile;
+	handle_map[ "Script"       ] = &VegaXmlPlotter::exec_Script;
+	handle_map[ "Plot"         ] = &VegaXmlPlotter::exec_Plot;
+	handle_map[ "Loop"         ] = &VegaXmlPlotter::exec_Loop;
+	handle_map[ "Scope"        ] = &VegaXmlPlotter::exec_Loop;
+	handle_map[ "RangeLoop"    ] = &VegaXmlPlotter::exec_Loop;
+	handle_map[ "Axes"         ] = &VegaXmlPlotter::exec_Axes;
+	handle_map[ "Export"       ] = &VegaXmlPlotter::exec_Export;
+	handle_map[ "ExportConfig" ] = &VegaXmlPlotter::exec_ExportConfig;
+	handle_map[ "TLine"        ] = &VegaXmlPlotter::exec_TLine;
+	handle_map[ "Rect"         ] = &VegaXmlPlotter::exec_Rect;
+	handle_map[ "Ellipse"      ] = &VegaXmlPlotter::exec_Ellipse;
+	handle_map[ "TLatex"       ] = &VegaXmlPlotter::exec_TLatex;
+	handle_map[ "TLegend"      ] = &VegaXmlPlotter::exec_TLegend;
+	handle_map[ "Legend"       ] = &VegaXmlPlotter::exec_TLegend;
+	handle_map[ "Palette"      ] = &VegaXmlPlotter::exec_Palette;
+
+	handle_map[ "StatBox"      ] = &VegaXmlPlotter::exec_StatBox;
+	handle_map[ "Histo"        ] = &VegaXmlPlotter::exec_Histo;
+	handle_map[ "Graph"        ] = &VegaXmlPlotter::exec_Graph;
+	handle_map[ "TF1"          ] = &VegaXmlPlotter::exec_TF1;
+
+	handle_map[ "Canvas"       ] = &VegaXmlPlotter::exec_Canvas;
+	handle_map[ "Pad"          ] = &VegaXmlPlotter::exec_Pad;
+	handle_map[ "Margins"      ] = &VegaXmlPlotter::exec_Margins;
+
+	/*** Transforms ***/
+	handle_map[ "Transforms"   ] = &VegaXmlPlotter::exec_Transforms;
+	handle_map[ "Transform"   ] = &VegaXmlPlotter::exec_Transforms;
+
+	handle_map[ "Projection"   ] = &VegaXmlPlotter::exec_transform_Projection;
+	handle_map[ "ProjectionX"  ] = &VegaXmlPlotter::exec_transform_ProjectionX;
+	handle_map[ "ProjectionY"  ] = &VegaXmlPlotter::exec_transform_ProjectionY;
+	handle_map[ "FitSlices"    ] = &VegaXmlPlotter::exec_transform_FitSlices;
+	handle_map[ "FitSlice "    ] = &VegaXmlPlotter::exec_transform_FitSlices;
+	handle_map[ "MultiAdd"     ] = &VegaXmlPlotter::exec_transform_MultiAdd;
+	handle_map[ "Add"          ] = &VegaXmlPlotter::exec_transform_Add;
+	handle_map[ "Divide"       ] = &VegaXmlPlotter::exec_transform_Divide;
+	handle_map[ "Rebin"        ] = &VegaXmlPlotter::exec_transform_Rebin;
+	handle_map[ "Scale"        ] = &VegaXmlPlotter::exec_transform_Scale;
+	handle_map[ "Normalize"    ] = &VegaXmlPlotter::exec_transform_Normalize;
+	handle_map[ "Draw"         ] = &VegaXmlPlotter::exec_transform_Draw;
+	handle_map[ "Clone"        ] = &VegaXmlPlotter::exec_transform_Clone;
+	handle_map[ "Smooth"       ] = &VegaXmlPlotter::exec_transform_Smooth;
+	handle_map[ "CDF"          ] = &VegaXmlPlotter::exec_transform_CDF;
+	handle_map[ "Style"        ] = &VegaXmlPlotter::exec_transform_Style;
+	handle_map[ "SetBinError"  ] = &VegaXmlPlotter::exec_transform_SetBinError;
+	handle_map[ "BinLabels"    ] = &VegaXmlPlotter::exec_transform_BinLabels;
+	handle_map[ "Sumw2"        ] = &VegaXmlPlotter::exec_transform_Sumw2;
+	handle_map[ "ProcessLine"  ] = &VegaXmlPlotter::exec_transform_ProcessLine;
+	handle_map[ "Assign"       ] = &VegaXmlPlotter::exec_transform_Assign;
+	handle_map[ "Format"       ] = &VegaXmlPlotter::exec_transform_Format;
+	handle_map[ "Print"        ] = &VegaXmlPlotter::exec_transform_Print;
+	handle_map[ "Proof"        ] = &VegaXmlPlotter::exec_transform_Proof;
+	handle_map[ "List"         ] = &VegaXmlPlotter::exec_transform_List;
+
+} // init
+
+void VegaXmlPlotter::exec_node( string _path ){
 	DSCOPE();
+	if ( false == config.exists( _path ) )
+		return;
 
-	TCanvas *c = new TCanvas( "rp" );
-	// c->Print( "rp.pdf[" );
+	string tag = config.tagName( _path );
+	DLOG( "exec_node( %s ), tag = %s", _path.c_str(), tag.c_str() );
 
-	loadData();
-	makeOutputFile();
-
-	// string ll = config.getString( "Logger:globalLogLevel", "debug" );
-	//INFOC( "Setting ll to " << quote(ll) );
-	// Logger::setGlobalLogLevel( "none" );
-	makeTransforms();
-	makePlots();
-	makePlotTemplates();
-	makeCanvases();
-
-	if ( dataOut ){
-		LOG_F( INFO, "Writing data to %s", config.getXString( "TFile:url" ).c_str() );
-		dataOut->Write();
-		dataOut->Close();
-		LOG_F( INFO, "Write completed" );
+	if ( 0 == handle_map.count( tag ) ){
+		LOG_F( ERROR, "No Handler for %s", tag.c_str() );
+		return;
 	}
 
-	// c->Print( "rp.pdf]" );
+	exec( tag, _path );
+} // exec_node
 
-	if ( config.exists( "ExportConfig:url" ) ){
-		LOG_F( INFO, "exporting config to %s", config["ExportConfig:url"].c_str() );
-		config.deleteNode( "ExportConfig" );	// not working!!!
-		config.toXmlFile( config["ExportConfig:url"] );
-	}
-	
-	// config.dumpToFile( "config_dump.txt" );
+string VegaXmlPlotter::random_string( size_t length ){
+	auto randchar = []() -> char
+	{
+		const char charset[] =
+		"0123456789"
+		"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+		"abcdefghijklmnopqrstuvwxyz";
+		const size_t max_index = (sizeof(charset) - 1);
+		return charset[ rand() % max_index ];
+	};
+	string str(length,0);
+	generate_n( str.begin(), length, randchar );
+	return str;
 }
 
-void VegaXmlPlotter::makeHandlers(){
-
-	// vector<string> paths = config.childrenOf( nodePath );
-	// for ( string path : paths ){
-	// 	LOG_F( INFO, "%s -> %s", path.c_str(), config.tagName(path).c_str() );
-	// }
-}
-
-map<string, shared_ptr<TF1> > VegaXmlPlotter::makeTF(string _path){
+void VegaXmlPlotter::make(){
 	DSCOPE();
-	vector<string> paths = config.childrenOf( _path );
-	map< string, shared_ptr<TF1> > funcs;
-	for ( string path : paths ){
-		string name = config.getString( path + ":name" );
-		string tag = config.tagName(path);
-		if ( "TF1" == tag || "XmlFunction" == tag ){
-			funcs[ name ] = makerTF.make( config, path );
 
-			if (nullptr == funcs[ name ]){
-				LOG_F( INFO, "need to load TF! from file" );
-			}
 
+	// Load data first
+	vector<string> dpaths = config.childrenOf( "", "Data" );
+	for ( string p : dpaths ){
+		exec_node( p );
+	}
+
+    vector<string> paths = config.childrenOf( "", "ExportConfig" );
+	for ( string p : paths ){
+		exec_node( p );
+	}
+
+	if ( dpaths.size() > 0 && dataFiles.size() == 0 && dataChains.size() == 0 ){
+		LOG_F( WARNING, "No valid data files found, exiting" );
+		return;
+	}
+
+	// if a TFile node is given for writing output, then execute it
+	exec_node( "TFile" );
+
+	// if not global TCanvas tag exists then make a fallback canvas
+	if ( 0 == config.childrenOf( "", "TCanvas" ).size() ){
+		LOG_F( INFO, "No <TCanvas/> found at root, making a global TCanvas" );
+		exec_TCanvas( "" );
+	}
+
+	// Top level nodes
+	vector<string> tlp = { "Script", "TCanvas", "Margins", "Plot", "Loop", "RangeLoop", "Canvas", "Transforms", "Transform" };
+	paths = config.childrenOf( "", 1 );
+	for ( string p : paths ){
+		string tag = config.tagName( p );
+		if ( std::find( tlp.begin(), tlp.end(), tag ) != tlp.end() ){
+			exec_node( p );
 		}
 	}
-	return funcs;
-}
+
+	// Write data out if requested
+	if ( dataOut && dataOut->IsOpen() ){
+		dataOut->Write();
+		dataOut->Close();
+		LOG_F( INFO, "Write to %s completed", config.getString( "TFile:url" ).c_str() );
+	}
+} // make
 
 void VegaXmlPlotter::loadDataFile( string _path ){
 	DSCOPE();
 	if ( config.exists( _path + ":name" ) && config.exists( _path + ":url" )  ){
 		string name = config.getXString( _path+":name" );
 		string url = config.getXString( _path+":url" );
-		LOG_S( INFO ) <<  "Data name=" << name << " @ " << url ;
+
+		DLOG( "Data[%s] = %s", name.c_str(), url.c_str() );
+		// LOG_S( INFO ) <<  "Data name=" << name << " @ " << url ;
+
 		TFile * f = new TFile( url.c_str() );
+		if ( false == f->IsOpen() ){
+			LOG_F( ERROR, "%s cannot be opened", url.c_str() );
+			return;
+		}
+
 		dataFiles[ name ] = f;
+		LOG_F( INFO, "Data[%s] = %s", name.c_str(), url.c_str() );
 
 		if ( config.getBool( _path + ":inline", false ) )
 			inlineDataFile( _path, f );
@@ -145,21 +220,23 @@ void VegaXmlPlotter::inlineDataFile( string _path, TFile *_f ){
 
 	xml += "\n</config>";
 
+	// make a tmp config and save it to disk as an XML version of data file
 	XmlConfig tmpcfg;
 	tmpcfg.loadXmlString( xml );
-	//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	// BROKEN // config.include( tmpcfg, _path, true );
-	// now remove the url attribute to make it an inlinde data file
+	tmpcfg.toXmlFile( config.get<string>(_path + ":url") + ".xml" );
+
+	// include it into the XML file and delete the old reference to data file
+	LOG_F( INFO, "include @ %s", _path.c_str() );
+	config.include_xml( xml, _path  );
 	config.deleteAttribute( _path + ":url" );
 
 	// LOG_F( INFO, "resulting XML to inline : \n%s", xml.c_str() );
-}
+} // inlineDataFile
 
 int VegaXmlPlotter::numberOfData() {
 	DSCOPE();
 	return dataFiles.size() + dataChains.size();
-}
-
+} // numberOfData
 
 void VegaXmlPlotter::loadChain( string _path ){
 	DSCOPE();
@@ -185,7 +262,7 @@ void VegaXmlPlotter::loadChain( string _path ){
 	if ( dataChains[name]->GetListOfFiles() )
 		nFiles = dataChains[name]->GetListOfFiles()->GetEntries();
 	LOG_S(INFO) << "Chain has " << nFiles << plural( nFiles, " file", " files" );
-}
+} // loadChain
 
 void VegaXmlPlotter::loadData(){
 	DSCOPE();
@@ -203,144 +280,7 @@ void VegaXmlPlotter::loadData(){
 	if ( data_nodes.size() <= 0 ){
 		LOG_F(WARNING, "No data nodes found!" );
 	}
-
 } // loadData
-
-
-void VegaXmlPlotter::makeOutputFile(){
-	DSCOPE();
-	if ( config.exists( "TFile:url" ) ){
-		dataOut = new TFile( config.getXString( "TFile:url" ).c_str(), "RECREATE" );
-	} else {
-		//INFO( classname(), "No output data file requested" );
-	}
-}
-
-void VegaXmlPlotter::makePlotTemplates(){
-	DSCOPE();
-	vector<string> plott_paths = config.childrenOf( nodePath, "PlotTemplate" );
-	DLOG_F( INFO, "Found %lu PlotTemplate", plott_paths.size() );
-	for ( string path : plott_paths ){
-		vector<string> names = config.getStringVector( path + ":names" );
-		if ( names.size() <= 1 ){
-			names = glob( config.getString( path+":names" ) );
-		}
-
-		TCanvas * c = makeCanvas( path );
-
-		int iPlot = 0;
-		for ( string name : names ){
-
-			// set the global vars for this template
-			config.set( "name", name );
-			config.set( "uname", underscape(name) );
-			config.set( "iPlot", ts(iPlot) );
-
-			makeMargins( path );
-			makePlot( path );
-			iPlot++;
-		}
-	}
-}
-
-void VegaXmlPlotter::makePlot( string _path, TPad * _pad ){
-	DSCOPE();
-	LOG_F( INFO, "Makign Plot[%s] @ %s", config.getString( _path+":name", "" ).c_str(), _path.c_str() );
-
-	/* TODO
-	 * change logic so that it renders in the order of the nodes, 
-	 * not All Hists, all graphs, all functions -> this makes it impossible to controll whats on top of what
-	 */
-
-	if ( config.exists( _path + ".Palette" ) ){
-		gStyle->SetPalette( config.getInt( _path + ".Palette" ) );
-	}
-
-	makeAxes( _path + ".Axes" );
-	map<string, TH1*> histos = makeHistograms( _path );
-	map<string, TGraph*> graphs = makeGraphs( _path );
-	map<string, shared_ptr<TF1>> funcs =  makeTF( _path );
-
-	makeImages( _path );
-	makeLine( _path );
-	// makeHistoStack( histos );
-	makeLatex(""); // global first
-	makeRect( _path );
-	makeLatex(_path);
-	
-
-	makeLegend( _path, histos, graphs, funcs );
-
-	makeExports( _path, _pad );
-	// INFOC( "Finished making Plot" );
-}
-
-void VegaXmlPlotter::makePlots(){
-	DSCOPE();
-	vector<string> plot_paths = config.childrenOf( nodePath, "Plot" );
-	
-	DLOG_S(INFO) << "Found " << plot_paths.size() << plural( plot_paths.size(), " Plot", " Plots" );
-
-	for ( string path : plot_paths ){
-		TCanvas * c = makeCanvas( path ); 
-		c->cd();
-		makeMargins( path );
-		makePlot( path );
-	}
-}
-
-void VegaXmlPlotter::makeCanvases(){
-	DSCOPE();
-	vector<string> c_paths = config.childrenOf( nodePath, "Canvas" );
-	//INFO( classname(), "Found " << c_paths.size() << plural( c_paths.size(), " Canvas", " Canvases" ) );
-	for ( string path : c_paths ){
-		drawCanvas( path );
-	}
-}
-
-// void VegaXmlPlotter::makeHistoStack( map<string, TH1*> histos ){
-// DSCOPE();
-// 	THStack *hs = new THStack( "hs", "" );
-// 	for ( auto kv : histos ){
-// 		hs->Add( kv.second );
-// 	}
-// 	RooPlotLib rpl;
-// 	rpl.style( hs )
-// }
-
-void VegaXmlPlotter::makeMargins( string _path ){
-	DSCOPE();
-	
-	float tm=-1, rm=-1, bm=-1, lm=-1;
-
-	vector<float> parts = config.getFloatVector( "Margins" );
-	if ( parts.size() >= 4 ){
-		tm=parts[0];rm=parts[1];bm=parts[2];lm=parts[3];
-	}
-
-	parts = config.getFloatVector( _path + ".Margins" );
-	if ( parts.size() >= 4 ){
-		tm=parts[0];rm=parts[1];bm=parts[2];lm=parts[3];
-	}
-
-	// Global first
-	
-	tm = config.getFloat( "Margins:top"    , tm );
-	rm = config.getFloat( "Margins:right"  , rm );
-	bm = config.getFloat( "Margins:bottom" , bm );
-	lm = config.getFloat( "Margins:left"   , lm );
-
-	tm = config.getFloat( _path + ".Margins:top"    , tm );
-	rm = config.getFloat( _path + ".Margins:right"  , rm );
-	bm = config.getFloat( _path + ".Margins:bottom" , bm );
-	lm = config.getFloat( _path + ".Margins:left"   , lm );
-
-	LOG_F( INFO, "Margins( %f, %f, %f, %f )", tm, rm, bm, lm );
-	if ( tm>=0 ) gPad->SetTopMargin( tm );
-	if ( rm>=0 ) gPad->SetRightMargin( rm );
-	if ( bm>=0 ) gPad->SetBottomMargin( bm );
-	if ( lm>=0 ) gPad->SetLeftMargin( lm );
-}
 
 
 TObject* VegaXmlPlotter::findObject( string _path ){
@@ -366,20 +306,18 @@ TObject* VegaXmlPlotter::findObject( string _path ){
 
 	// finally look for histos we made and named in the ttree drawing
 	if ( globalHistos.count( name ) > 0 && globalHistos[ name ] ){
-		LOG_F( INFO, "Lokking in globalHistos" );
+		LOG_F( INFO, "Looking in globalHistos" );
 		return globalHistos[ name ];
 	}
 
 	if ( globalGraphs.count( name ) > 0 && globalGraphs[ name ] ){
-		LOG_F( INFO, "Lokking in globalGraphs" );
+		LOG_F( INFO, "Looking in globalGraphs" );
 		return globalGraphs[ name ];
 	}
 
 	LOG_F( WARNING, "Object [%s/%s] was not found in any source", data.c_str(), name.c_str() );
 	return nullptr;
-}
-
-
+} // findObject
 
 TH1 *VegaXmlPlotter::findHistogram( string _data, string _name ){
 	DSCOPE();
@@ -408,7 +346,7 @@ TH1 *VegaXmlPlotter::findHistogram( string _data, string _name ){
 	}
 
 	return nullptr;
-}
+} // findHistogram
 
 TH1* VegaXmlPlotter::findHistogram( string _path, int iHist, string _mod ){
 	DSCOPE();
@@ -457,620 +395,15 @@ TH1* VegaXmlPlotter::findHistogram( string _path, int iHist, string _mod ){
 		return h;
 	}
 
-	
+	// finally look for histos we made and named in the ttree drawing
+	if ( globalHistos.count( name ) > 0 && globalHistos[ name ] ){	
+		return globalHistos[ name ];
+	}
+
 
 
 	return nullptr;
-}
-
-
-TH1* VegaXmlPlotter::makeAxes( string _path ){
-	DSCOPE();
-	
-	if ( !config.exists( _path ) ) return nullptr;
-
-	RooPlotLib rpl;
-	HistoBins x( config, _path );
-	HistoBins y( config, _path );
-
-	// also check for linspaces on x, y
-	LOG_F( 0, "Checking @%s:x :: %s ", _path.c_str(), config.oneOf( _path + ":x", _path + ":lsx" ).c_str() );
-	x.linspace( config, config.oneOf( _path + ":x", _path + ":lsx" ) );
-	x.arange( config, config.oneOf( _path + ":xrange", _path + ":xr" ) );
-
-	LOG_F( 0, "Checking @%s:y :: %s ", _path.c_str(), config.oneOf( _path + ":y", _path + ":lsy" ).c_str() );
-	y.linspace( config, config.oneOf( _path + ":y", _path + ":lsy" ) );
-	y.arange( config, config.oneOf( _path + ":yrange", _path + ":yr" ) );
-
-	// INFOC( "X : " << x.toString() << "\n\n\n" );
-	// INFOC( "Y : " << y.toString() );
-
-	if ( x.nBins() <= 0 ) {
-		LOG_F( ERROR, "X bins invalid, bailing out" );
-		// ERRORC( "Cannot make Axes, invalid x bins" );
-		return nullptr;
-	}
-
-	if ( y.nBins() <= 0 ) {
-		LOG_F( ERROR, "Y bins invalid, bailing out" );
-		// ERRORC( "Cannot make Axes, invalid y bins" );
-		return nullptr;
-	}
-
-	config.set( "x_min", dts(x.minimum()) );
-	config.set( "x_max", dts(x.maximum()) );
-
-	config.set( "y_min", dts(y.minimum()) );
-	config.set( "y_max", dts(y.maximum()) );
-
-	TH1 * frame = new TH1C( "frame", "", x.nBins(), x.bins.data() );
-
-	rpl.style( frame ).set( "yr", y.minimum(), y.maximum() );
-	rpl.set( config, _path ).set( config, _path + ":style" ).set( config, _path + ".style" );
-
-	frame->SetMarkerStyle(8);
-	frame->SetMarkerSize(0);
-	frame->Draw("p");
-
-	return frame;
-}
-
-
-map<string, TH1*> VegaXmlPlotter::makeHistograms( string _path ){
-	DSCOPE();
-	map<string, TH1*> histos;
-	vector<string> hist_paths = config.childrenOf( _path, "Histo" );
-
-	LOG_F( INFO, "Found %lu Histograms", hist_paths.size() );
-	for ( string hpath : hist_paths ){
-
-		if ( config.exists( hpath + ":names" ) ){
-			//INFOC( "HISTOGRAM TEMPLATE at " << hpath );
-
-			vector<string> names = config.getStringVector( hpath + ":names" );
-			if ( names.size() <= 1 ){
-				names = glob( config.getString( hpath + ":names" ) );
-			}
-
-			int i = 0;
-			for ( string name : names ){
-
-				// set the global vars for this template
-				config.set( hpath + ":name", name );
-				config.set( "i", ts(i) );
-
-				//INFOC( "Histogram from template name = " << config.getXString( hpath + ":name" ) );
-
-				string fqn = "";
-				TH1 * h = makeHistogram( hpath, fqn );
-				histos[ nameOnly(fqn) ] = h;
-				histos[ fqn ] = h;
-				i++;
-			}
-			continue;
-		}
-
-		string fqn = "";
-		TH1 * h = makeHistogram( hpath, fqn );
-		histos[ nameOnly(fqn) ] = h;
-		histos[ fqn ] = h;
-		//INFOC( "[" << nameOnly(fqn) << "] = " << h );
-		//INFOC( "[" << fqn << "] = " << h );
-	}
-
-	return histos;
-}
-
-void VegaXmlPlotter::makeImages( string _path ){
-	DSCOPE();
-	vector<string> paths = config.childrenOf( _path, "Image" );
-
-	for ( string gpath : paths ){
-
-		if ( config.exists( gpath + ":names" ) ){
-			vector<string> names = config.getStringVector( gpath + ":names" );
-			if ( names.size() <= 1 ){
-				names = glob( config.getString( gpath + ":names" ) );
-			}
-
-			int i = 0;
-			for ( string name : names ){
-
-				// set the global vars for this template
-				config.set( gpath + ":name", name );
-				config.set( "i", ts(i) );
-
-				//INFOC( "Histogram from template name = " << config.getXString( gpath + ":name" ) );
-
-				string fqn = "";
-				makeImage( gpath, fqn );
-				i++;
-			}
-			continue;
-		} else {
-			string fqn = "";
-			makeImage( gpath, fqn );
-		}
-	}
-}
-
-void VegaXmlPlotter::makeImage( string _path, string &fqn ){
-	DSCOPE();
-	
-	TImage * img = TImage::Open( config.getString( _path +":name" ).c_str() );
-	if ( nullptr != img ){
-		vector<float> pos = config.getFloatVector( _path + ":pos" );
-		TVirtualPad *pPad = gPad;
-		TPad * pad = new TPad( config.getString( _path +":name" ).c_str(), "", pos[0], pos[1], pos[2], pos[3] );
-		pad->SetBorderSize( 0 );
-		pad->SetBorderMode( 0 );
-		pad->SetTopMargin(0.1);
-		pad->SetBottomMargin(0.1);
-		pad->AppendPad();
-		pad->cd();
-		pad->SetFillStyle( 4001 );
-		pad->SetFrameFillColor(0);
-		pad->SetFrameFillStyle(0);
-		pad->SetFrameBorderMode(0);
-		pad->SetFrameBorderSize(0);
-		pad->SetFillColorAlpha(0,0.0);
-		// pad->SetFillColor( kRed );
-
-		img->Draw("");
-		pPad->cd();
-	} else {
-		LOG_F( ERROR, "IMage is null" );
-	}
-
-}
-
-
-
-map<string, TGraph*> VegaXmlPlotter::makeGraphs( string _path ){
-	DSCOPE();
-	map<string, TGraph*> graphs;
-	vector<string> paths = config.childrenOf( _path, "Graph" );
-
-	for ( string gpath : paths ){
-
-		if ( config.exists( gpath + ":names" ) ){
-			//INFOC( "HISTOGRAM TEMPLATE at " << gpath );
-
-			vector<string> names = config.getStringVector( gpath + ":names" );
-			if ( names.size() <= 1 ){
-				names = glob( config.getString( gpath + ":names" ) );
-			}
-
-			int i = 0;
-			for ( string name : names ){
-
-				// set the global vars for this template
-				config.set( gpath + ":name", name );
-				config.set( "i", ts(i) );
-
-				//INFOC( "Histogram from template name = " << config.getXString( gpath + ":name" ) );
-
-				string fqn = "";
-				TGraph * h = makeGraph( gpath, fqn );
-				graphs[ nameOnly(fqn) ] = h;
-				graphs[ fqn ] = h;
-				i++;
-			}
-			continue;
-		} else {
-			string fqn = "";
-			TGraph * h = makeGraph( gpath, fqn );
-			graphs[ nameOnly(fqn) ] = h;
-			graphs[ fqn ] = h;
-		}
-	}
-
-	return graphs;
-}
-
-TGraph* VegaXmlPlotter::makeGraph( string _path, string &fqn ){
-	DSCOPE();
-	RooPlotLib rpl;
-
-	TObject * obj = findObject( _path );
-	LOG_F( INFO, "Object = %p", obj );
-	TGraph * g = dynamic_cast<TGraph*>( obj );
-
-	if ( nullptr == g ) {
-		LOG_F( ERROR, "Cannot get Graph @ %s", _path.c_str() );
-		return nullptr;
-	}
-	LOG_F( INFO, "Found Graph at %s", _path.c_str() );
-
-	// set meta info
-	config.set( "ClassName", g->ClassName() );
-
-	string name = config.getXString( _path + ":name" );
-	string data = config.getXString( _path + ":data" );
-	
-	fqn = fullyQualifiedName( data, name );
-
-
-	rpl.style( g ).set( config, _path ).set( config, _path + ":style" ).set( config, _path + ".style" ).draw();
-
-	return g;
-}
-
-TH1* VegaXmlPlotter::makeHistogram( string _path, string &fqn ){
-	DSCOPE();
-	RooPlotLib rpl;
-
-	TH1* h = findHistogram( _path, 0 );
-	LOG_F( INFO, "Found Histogram @%s = %p", _path.c_str(), h );
-	
-
-	for (auto kv : globalHistos ){
-		//INFOC( "mem pool : " << kv.first );
-	}
-
-	if ( nullptr == h ) return nullptr;
-
-	positionOptStats( "", nullptr );
-
-	config.set( "ClassName", h->ClassName() );
-	DLOG( "ClassName %s", config[ "ClassName" ].c_str() );
-	
-	string name = config.getXString( _path + ":name" );
-	string data = config.getXString( _path + ":data" );
-	
-	fqn = fullyQualifiedName( data, name );
-
-	float nI = h->Integral();
-	string normp = config.oneOf( _path + ".Norm", _path + ":norm" );
-	if ( "" != normp && nI > 0 && config.getBool( normp, true ) == true){
-		float normC = config.get<float>( normp, 0 );
-		if ( normC <= 0 )
-			normC = 1.0;
-		LOG_F( INFO, "Normalize: %s to %f / %f", h->GetName(), normC, nI );
-		h->Scale( normC / nI );
-	}
-
-	string styleRef = config.getXString( _path + ":style" );
-	//INFOC( "Style Ref : " << styleRef );
-	if ( config.exists( styleRef ) ){
-		rpl.style( h ).set( config, styleRef );
-	}
-
-	rpl.style( h ).set( config, _path ).set( config, _path + ".style" ).draw();
-
-	if ( config.exists( _path +":after_draw" ) ){
-		string cmd = ".x " + config[_path+":after_draw"] + "( " + h->GetName() + " )";
-		LOG_F( INFO, "Executing: %s", cmd.c_str()  );
-		gROOT->ProcessLine( cmd.c_str() );
-	}
-
-	TPaveStats *st = (TPaveStats*)h->FindObject("stats");
-	if ( nullptr != st  ){
-		positionOptStats( _path, st );
-		// st->SetX1NDC( 0.7 ); st->SetX2NDC( 0.975 );
-	}
-	return h;
-}
-
-
-void VegaXmlPlotter::makeLegend( string _path, map<string, TH1*> &histos, map<string, TGraph*> &graphs, map<string, shared_ptr<TF1>> &funcs ){
-	DSCOPE();
-	if ( config.exists( _path + ".Legend" ) ){
-		
-		RooPlotLib rpl;
-		float x1, y1, x2, y2;
-		x1 = config.getDouble( _path + ".Legend.Position:x1", 0.1 );
-		y1 = config.getDouble( _path + ".Legend.Position:y1", 0.7 );
-		x2 = config.getDouble( _path + ".Legend.Position:x2", 0.5 );
-		y2 = config.getDouble( _path + ".Legend.Position:y2", 0.9 );
-
-		string spos = config.getXString( _path + ".Legend.Position:pos" );
-
-		float w = config.getFloat( _path + ".Legend.Position:w", 0.4 );
-		float h = config.getFloat( _path + ".Legend.Position:h", 0.2 );
-		vector<float> padding = config.getFloatVector( _path + ".Legend.Position:padding" );
-		if ( padding.size() < 4 ){
-			padding.clear();
-			padding.push_back( 0 ); padding.push_back( 0 );
-			padding.push_back( 0 ); padding.push_back( 0 );
-		}
-
-		DLOG( "Legend padding : %s", vts( padding ).c_str() );
-
-
-		if ( spos.find("top") != string::npos ){
-			LOG_F( INFO, "LEGEND: TOP" );
-			y2 = 0.9 - padding[0];
-			if ( nullptr != gPad) y2 = 1.0 - gPad->GetTopMargin() - padding[0];
-			y1 = y2 - h;
-		}
-		if ( spos.find("right") != string::npos ){
-			LOG_F( INFO, "LEGEND: RIGHT" );
-			x2 = 0.9 - padding[1];
-			if ( nullptr != gPad) x2 = 1.0 - gPad->GetRightMargin() - padding[1];
-			x1 = x2 - w;
-		}
-		if ( spos.find("bottom") != string::npos ){
-			LOG_F( INFO, "LEGEND: BOTTOM" );
-			y1 = 0.1 + padding[2];
-			if ( nullptr != gPad) y1 = gPad->GetBottomMargin() + padding[2];
-			y2 = y1 + h;
-		}
-		if ( spos.find("left") != string::npos ){
-			LOG_F( INFO, "LEGEND: LEFT" );
-			x1 = 0.1 + padding[3];
-			if ( nullptr != gPad) x1 = gPad->GetLeftMargin() + padding[3];
-			x2 = x1 + w;
-		}
-		if ( spos.find("vcenter") != string::npos ){
-			LOG_F( INFO, "LEGEND: VERTICAL CENTER" );
-			y1 = 0.5 - h/2;
-			y2 = 0.5 + h/2;
-		}
-		if ( spos.find("hcenter") != string::npos ){
-			LOG_F( INFO, "LEGEND: HORIZONTAL CENTER" );
-			x1 = 0.5 - w/2;
-			x2 = 0.5 + w/2;
-		}
-		DLOG( "Legend position: (%f, %f) -> (%f, %f)", x1, y1, x2, y2 );
-		
-		
-
-		TLegend * leg = new TLegend( x1, y1, x2, y2 );
-
-		if ( config.exists(  _path + ".Legend:title" ) ) {
-			leg->SetHeader( config.getXString( _path + ".Legend:title" ).c_str() );
-		}
-		leg->SetNColumns( config.getInt( _path + ".Legend:columns", 1 ) );
-
-		vector<string> entries = config.childrenOf( _path + ".Legend", "Entry" );
-
-
-		// HISTOGRAMS
-		for ( string entryPath : entries ){
-			//INFO( classname(), "Entry @" << entryPath );
-			if ( config.exists( entryPath + ":name" ) != true ) continue;
-			string name = config.getXString( entryPath + ":name" );
-			
-			if ( histos.count( name ) <= 0 || histos[ name ] == nullptr ) {
-				continue;
-			}
-			TH1 * h = (TH1*)histos[ name ]->Clone( ("hist_legend_" + name).c_str() );
-			//INFO( classname(), "Entry histo=" << h );
-			string t = config.getXString(  entryPath + ":title", name );
-			string opt = config.getXString(  entryPath + ":opt", "l" );
-
-			// if ( config.exists( entryPath + ":markersize" ) ){
-			rpl.style( h ).set( config, entryPath );
-			// }
-
-
-			leg->AddEntry( h, t.c_str(), opt.c_str() );
-		}
-
-		// GRAPHS
-		for ( string entryPath : entries ){
-			//INFO( classname(), "Entry @" << entryPath );
-			if ( config.exists( entryPath + ":name" ) != true ) continue;
-			string name = config.getXString( entryPath + ":name" );
-			
-			if ( graphs.count( name ) <= 0 || graphs[ name ] == nullptr ) {
-				continue;
-			}
-			TGraph * g = (TGraph*)graphs[ name ]->Clone( ("graph_legend_" + name).c_str() );
-
-
-			//INFO( classname(), "Entry histo=" << h );
-			string t = config.getXString(  entryPath + ":title", name );
-			string opt = config.getXString(  entryPath + ":opt", "l" );
-
-			rpl.style( g ).set( config, entryPath );
-			leg->AddEntry( g, t.c_str(), opt.c_str() );
-		}
-
-		// FUNCTIONS
-		for ( string entryPath : entries ){
-			//INFO( classname(), "Entry @" << entryPath );
-			if ( config.exists( entryPath + ":name" ) != true ) continue;
-			string name = config.getXString( entryPath + ":name" );
-			
-			if ( funcs.count( name ) <= 0 || funcs[ name ] == nullptr ) {
-				continue;
-			}
-			TF1 * f = (TF1*)funcs[ name ]->Clone( ("graph_legend_" + name).c_str() );
-
-
-			//INFO( classname(), "Entry histo=" << h );
-			string t = config.getXString(  entryPath + ":title", name );
-			string opt = config.getXString(  entryPath + ":opt", "l" );
-
-			rpl.style( f ).set( config, entryPath );
-			leg->AddEntry( f, t.c_str(), opt.c_str() );
-		}
-
-		if ( entries.size() <= 0 ){
-			// Add an entry for all histograms by default if no <Entry> nodes found
-			for ( auto kv : histos ){
-				string t = config.getString(  _path + ".Legend." + kv.first+ ":title", kv.first) ;
-				string opt = config.getString(  _path + ".Legend." + kv.first+ ":opt", "l") ;
-				leg->AddEntry( kv.second, t.c_str(), opt.c_str() );
-			}
-		}
-
-		if ( config.exists( _path + ".Legend:text_size" ) ){
-			leg->SetTextSize( config.getDouble( _path + ".Legend:text_size" ) );
-		}
-		if ( config.exists( _path + ".Legend:text_point" ) ){
-			leg->SetTextSize( config.getDouble( _path + ".Legend:text_point" ) / 360.0 );
-		}
-		if ( config.exists( _path + ".Legend:border_size" ) ){
-			leg->SetBorderSize( config.getDouble( _path + ".Legend:border_size" ) );
-		}
-		if ( config.exists( _path + ".Legend:fill_color" ) ){
-			leg->SetFillColor( color( config.getString( _path + ".Legend:fill_color" ) ) );
-		}
-		if ( config.exists( _path + ".Legend:fill_style" ) ){
-			//INFOC( "FillStyle=" << config.getInt( _path + ".Legend:fill_style" ) );
-			leg->SetFillStyle( config.getInt( _path + ".Legend:fill_style" ) );
-		}
-
-		leg->Draw( );
-
-	}
-}
-
-void VegaXmlPlotter::makeLatex( string _path ){
-	DSCOPE();
-	//INFO( classname(), "_path=" << quote(_path) );
-	
-	TLatex latex;
-	vector<string> latex_paths = config.childrenOf( _path, "TLatex", 1 );
-	for ( string ltpath : latex_paths ){
-		if ( !config.exists( ltpath + ":text" ) ) continue;
-
-		string text = config.getXString( ltpath + ":text" );
-		
-		//INFO( classname(), "Latex @ " << ltpath );
-		latex.SetTextSize( config.getFloat( ltpath + ":size", 0.05 ) );
-		if ( config.exists( ltpath + ":point" ) )
-			latex.SetTextSize( config.getFloat( ltpath + ":point", 18 ) / 360.0 );
-		
-
-
-		if ( config.exists( ltpath +":color" ) ){
-			string cs = config.getXString( ltpath + ":color" );
-			latex.SetTextColor( color( cs ) );
-		} else {
-			latex.SetTextColor( kBlack );
-		}
-		
-		TLatex * TL = nullptr;
-		if ( config.exists( ltpath + ":x" ) && config.exists( ltpath + ":y" ) ){
-			TL = latex.DrawLatexNDC( config.getFloat( ltpath + ":x" ), 
-							config.getFloat( ltpath + ":y" ), 
-							config.getXString( ltpath + ":text" ).c_str() );
-		} else if ( config.exists( ltpath + ":ux" ) && config.exists( ltpath + ":uy" ) ){
-			TL = latex.DrawLatex( config.getFloat( ltpath + ":ux" ), 
-							config.getFloat( ltpath + ":uy" ), 
-							config.getXString( ltpath + ":text" ).c_str() );
-		}
-		if ( nullptr == TL ){
-			LOG_F(ERROR, "Cannot draw latex, missing attribute. Must have pad corrds (:x,:y) or user corrds( :ux, :uy)" ); 
-		}		 
-
-		if ( config.exists( ltpath + ":font" ) ){
-			TL->SetTextFont( config.getInt( ltpath + ":font" ) );
-		}
-		if ( config.exists( ltpath + ":angle" ) ){
-			TL->SetTextAngle( config.getFloat( ltpath + ":angle" ) );
-		}
-
-		if ( config.exists( ltpath + ":align" ) ){
-			string strAlign = config.getString( ltpath + ":align" );
-			if ( "top" == strAlign || "t" == strAlign ){
-				TL->SetTextAlign( 13 );
-			} else if ( "center" == strAlign || "centered" == strAlign || "c" == strAlign ){
-				TL->SetTextAlign( 12 );
-			} else if ( "bottom" == strAlign || "b" == strAlign ){
-				TL->SetTextAlign( 11 );
-			} else if ( "special" == strAlign || "s" == strAlign ){
-				TL->SetTextAlign( 10 );
-			} else {
-				TL->SetTextAlign( config.getInt( ltpath + ":align" ) );
-			}
-		}
-
-	}
-}
-
-void VegaXmlPlotter::makeRect( string _path ){
-	DSCOPE();
-
-	vector<string> rect_paths = config.childrenOf( _path, "Rect", 1 );
-	RooPlotLib rpl;
-	for ( string rpath : rect_paths ){
-		vector<float> c;
-		c = config.getFloatVector( rpath + ":pos" );
-		TBox * rect = new TBox( c[0], c[1], c[2], c[3] );
-		rpl.style( rect ).set( config, rpath );
-		rect->Draw();
-	}
-}
-
-void VegaXmlPlotter::makeLine( string _path ){
-	DSCOPE();
-	//INFO( classname(), "_path=" << quote(_path) );
-
-	vector<string> line_paths = config.childrenOf( _path, "TLine", 1 );
-	for ( string ltpath : line_paths ){
-		
-		//INFO( classname(), "Line (" << config.getDouble( ltpath + ":x1", 0.0 ) << ", " << config.getDouble( ltpath + ":y1", 0.0 ) << ") -> (" << config.getDouble( ltpath + ":x2", 0.0 ) << ", " << config.getDouble( ltpath + ":y2", 0.0 ) << ")" )
-
-		vector<double> x(2);
-		vector<double> y(2);
-
-		if ( config.exists( ltpath + ":x" ) ){
-			x = config.getDoubleVector( ltpath + ":x" );
-		}
-		if ( config.exists( ltpath + ":y" ) ){
-			y = config.getDoubleVector( ltpath + ":y" );
-		}
-		if ( config.exists( ltpath + ":p1" ) ){
-			vector<double> p = config.getDoubleVector( ltpath + ":p1" );
-			if ( p.size() >= 2 ){
-				x[0] = p[0];
-				y[0] = p[1];
-			}
-		}
-		if ( config.exists( ltpath + ":p2" ) ){
-			vector<double> p = config.getDoubleVector( ltpath + ":p2" );
-			if ( p.size() >= 2 ){
-				x[1] = p[0];
-				y[1] = p[1];
-			}
-		}
-
-		LOG_F( INFO, "Line (%f, %f)->(%f, %f)", x[0], y[0], x[1], y[1] );
-		TLine * line = new TLine( 
-			config.getDouble( ltpath + ":x1", x[0] ),
-			config.getDouble( ltpath + ":y1", y[0] ),
-			config.getDouble( ltpath + ":x2", x[1] ),
-			config.getDouble( ltpath + ":y2", y[1] ) );
-
-		//INFO( classname(), "TLine @ " << ltpath );
-		
-		// TODO: add string color support here
-		line->SetLineColor( color( config.getString( ltpath + ":color" ) ) );
-		line->SetLineWidth( config.getInt( ltpath + ":width", 1 ) );
-		line->SetLineStyle( config.getInt( ltpath + ":style", 2 ) );
-
-		line->Draw("same");
-	}
-
-}
-
-void VegaXmlPlotter::makeExports( string _path, TPad * _pad ){
-	DSCOPE();
-	vector<string> exp_paths = config.childrenOf( _path, "Export", 1 );
-	if ( nullptr == _pad ) {
-		_pad = (TPad*)gPad;
-	}
-	if ( nullptr == _pad ) return; 
-	for ( string epath : exp_paths ){
-		if ( !config.exists( epath + ":url" ) ) continue;
-		string url = config.getXString( epath + ":url" );
-		if ( url.find( ".json" ) != string::npos ){
-			// TBufferJSON::ExportToFile( url.c_str(), _pad );
-			// LOG_F( INFO, "%s",  );
-			// ofstream fout( url.c_str() );
-			// fout << TBufferJSON::ConvertToJSON( _pad ).Data();
-			// fout.close();
-		} else {
-			_pad->Print( url.c_str() );
-		}
-		
-	}
-}
+} //findHistogram
 
 TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
 	DSCOPE();
@@ -1083,38 +416,67 @@ TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
 		hName = nameOnly( hName );
 	}
 
-	if ( dataChains.count( data ) == 0 ){
-		LOG_F( ERROR, "data file[ %s ] does not contain a TTree, maybe you forgot treeName?", data.c_str() );
+	if ( "" == data && dataChains.size() == 1 ){
+		data = dataChains.begin()->first;
+	} else if ( "" == data ){
+		LOG_F( ERROR, "Must specify the data source" );
 		return nullptr;
 	}
+	
 	TChain * chain = dataChains[ data ];
+	if ( nullptr == chain ){
+		LOG_F( ERROR, "Chain is null" );
+		return nullptr; 
+	}
+	
+	LOG_F( INFO, "Using name=%s, data=%s", quote(hName).c_str(), quote(data).c_str() );
 
 	string title = config.getXString( _path + ":title" );
-
 	string drawCmd = config.getXString( _path + ":draw" ) + " >> " + hName;
 	string selectCmd = config.getXString( _path + ":select" );
 	string drawOpt = config.getString( _path + ":opt" );
+
+
+	// If a title is not given then set the x, y, and z axis titles based on draw command
+	if ( !config.exists( _path + ":title" ) ){
+		string rdraw = config.getXString( _path + ":draw" );
+		size_t n = std::count(rdraw.begin(), rdraw.end(), ':');
+		if ( 0 == n ){
+			title = ";" + rdraw + "; dN/d(" + rdraw + ")";
+		} else if ( 1 == n ){
+			size_t p1 = rdraw.find(':');
+			string yt = rdraw.substr( 0, p1 );
+			string xt = rdraw.substr( p1+1 );
+			title = ";" + xt + ";" + yt;
+		} else if ( 2 == n ){
+			size_t p1 = rdraw.find(':');
+			size_t p2 = rdraw.find(':', p1+1);
+			string zt = rdraw.substr( 0, p1 );
+			string yt = rdraw.substr( p1+1, p2 );
+			string xt = rdraw.substr( p2+1 );
+			title = ";" + xt + ";" + yt + ";" + zt;
+		}
+	}
 	
 	// if bins are given lets assume we need to make the histo first
 	if ( config.exists( _path + ":bins_x" ) ){
 		HistoBins bx( config, config.getXString( _path + ":bins_x" ) );
 		HistoBins by( config, config.getXString( _path + ":bins_y" ) );
 		HistoBins bz( config, config.getXString( _path + ":bins_z" ) );
-		LOG_F( INFO, "bins: %s, %s, %s", bx.toString().c_str(), by.toString().c_str(), bz.toString().c_str() );
-		
 		HistoBook::make( "D", hName, title, bx, by, bz );
+		LOG_F( INFO, "x=%s, y=%s, z=%s", bx.toString().c_str(), by.toString().c_str(), bz.toString().c_str() );
 	}
 
 	long N = std::numeric_limits<long>::max();
-	if ( config.exists( _path + ":N" ) )
+	if ( config.exists( _path + ":N" ) ){
 		N = config.get<long>( _path + ":N" );
+		LOG_S(INFO) << "TTree->Draw( " << quote(drawCmd) << ", " << quote(selectCmd) << ", " << quote(drawOpt) << ", " << N << " );";
+	} else {
+		LOG_S(INFO) << "TTree->Draw( " << quote(drawCmd) << ", " << quote(selectCmd) << ", " << quote(drawOpt) << " );";
+	}
 
-	LOG_S(INFO) << "TTree->Draw( " << quote( drawCmd ) << ", " << quote( selectCmd ) << ", " << quote( drawOpt ) << "," << N << " )";
 	chain->Draw( drawCmd.c_str(), selectCmd.c_str(), drawOpt.c_str(), N );
-
-	TH1 *h = (TH1*)gDirectory->Get( hName.c_str() );
-	// TH1 *h = (TH1*)gPad->GetPrimitive( hName.c_str() );
-	assert( nullptr != h );
+	TH1 *h = (TH1*)gPad->GetPrimitive( hName.c_str() );
 
 	if ( config.exists( _path +":after_draw" ) ){
 		string cmd = ".x " + config[_path+":after_ draw"] + "( " + h->GetName() + " )";
@@ -1127,925 +489,37 @@ TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
 	globalHistos[ hName ] = h;
 
 	return h;
-}
+} // makeHistoFromDataTree
+
+
 
 void VegaXmlPlotter::positionOptStats( string _path, TPaveStats * st ){
-    DSCOPE();
-    
-
-    float x = config.getFloat( "OptStats:x", -1 );
-    float w = config.getFloat( "OptStats:w", -1 );
-    float y = config.getFloat( "OptStats:y", -1 );
-    float h = config.getFloat( "OptStats:h", -1 );
-    
-    
-    
-    
-    if ( x >=0 ){
-        gStyle->SetStatX( x ); // sets the right side of box, of course
-        LOG_F( 1, "SetStatX( %f ) -- this sets right side usually", x );
-    }
-    if ( w >=0 ){
-        gStyle->SetStatW( w ); // sets the left side with respect to X above
-        LOG_F( 1, "SetStatW( %f )", w );
-    }
-
-    if ( y >= 0 ){
-        gStyle->SetStatY( y );
-        LOG_F( 1, "SetStatY( %f )", y );
-    }
-    if ( h >= 0 ){
-        gStyle->SetStatH( h );
-        LOG_F( 1, "SetStatH( %f )", h );
-    }
-
-
-    if ( nullptr == st ){
-        return;
-    }
-
-    float x1 = config.getFloat( "OptStats:x1", -1 );
-    float x2 = config.getFloat( "OptStats:x2", -1 );
-    float y1 = config.getFloat( "OptStats:y1", -1 );
-    float y2 = config.getFloat( "OptStats:y2", -1 );
-    
-    st->SetX1NDC( x1 );
-    st->SetX2NDC( x2 );
-    st->SetY1NDC( y1 );
-    st->SetY2NDC( y2 );
-
-    x1 = config.getFloat( _path + ".OptStats:x1", -1 );
-    x2 = config.getFloat( _path + ".OptStats:x2", -1 );
-    y1 = config.getFloat( _path + ".OptStats:y1", -1 );
-    y2 = config.getFloat( _path + ".OptStats:y2", -1 );
-    
-    st->SetX1NDC( x1 );
-    st->SetX2NDC( x2 );
-    st->SetY1NDC( y1 );
-    st->SetY2NDC( y2 );
-
-}
-
-TCanvas* VegaXmlPlotter::makeCanvas( string _path ){
 	DSCOPE();
-	int width = -1, height = -1;
+	if ( nullptr == st ) return;
+
+	vector<double> pos = config.getDoubleVector( "OptStats" );
+
 	// global first
-	width = config.getInt( "TCanvas:width", -1 );
-	height = config.getInt( "TCanvas:height", -1 );
-
-	width = config.getInt( _path + ".TCanvas:width", width );
-	height = config.getInt( _path + ".TCanvas:height", height );
-
-	TCanvas * c = nullptr; 
-	if ( width != -1 && height > -1 )
-		c = new TCanvas( "c", "c", width, height );
-	else 
-		c = new TCanvas( "c" );
-
-	c->SetFillColor(0); 
-	c->SetFillStyle(4000);
-
-	return c;
-}
-
-
-void VegaXmlPlotter::makeTransforms(  ){
-	DSCOPE();
-	vector<string> tform_paths = config.childrenOf( nodePath, "Transform" );
-	LOG_F( INFO, "Found %lu Transforms", tform_paths.size() );
-	//INFOC( "Found " << tform_paths.size() << plural( tform_paths.size(), " Transform set", " Transform sets" ) );
+	if ( config.exists( "OptStats:x1" ) )
+		st->SetX1NDC( config.getFloat( "OptStats:x1" ) );
+	if ( config.exists( "OptStats:x2" ) )
+		st->SetX2NDC( config.getFloat( "OptStats:x2" ) );
+	if ( config.exists( "OptStats:y1" ) )
+		st->SetY1NDC( config.getFloat( "OptStats:y1" ) );
+	if ( config.exists( "OptStats:y2" ) )
+		st->SetY2NDC( config.getFloat( "OptStats:y2" ) ); 
 	
+	// local 
+	if ( config.exists( _path + ".OptStats:x1" ) )
+		st->SetX1NDC( config.getFloat( _path + ".OptStats:x1" ) );
+	if ( config.exists( _path + ".OptStats:x2" ) )
+		st->SetX2NDC( config.getFloat( _path + ".OptStats:x2" ) );
+	if ( config.exists( _path + ".OptStats:y1" ) )
+		st->SetY1NDC( config.getFloat( _path + ".OptStats:y1" ) );
+	if ( config.exists( _path + ".OptStats:y2" ) )
+		st->SetY2NDC( config.getFloat( _path + ".OptStats:y2" ) ); 
+} // positionOptStats
 
-	for ( string path : tform_paths ){
-		vector<string> states = config.getStringVector( path + ":states" );
-		int i = 0;
-		if( states.size() == 0 ) states.push_back( "" );
-
-
-		for ( string state : states ){
-			// set the global vars for this template
-			config.set( "state", state );
-			config.set( "i", ts(i) );
-			makeTransform( path );
-			i++;
-		}
-	}
-}
-
-void VegaXmlPlotter::makeTransform( string tpath ){
-	DSCOPE();
-	vector<string> tform_paths = config.childrenOf( tpath );
-	LOG_F( INFO, "Found %lu Transform paths", tform_paths.size() );
-	//INFOC( "Found " << tform_paths.size() << plural( tform_paths.size(), " Transform", " Transforms" ) );
-
-	// TODO function map from string to transform??
-	for ( string tform : tform_paths ){
-		string tn = config.tagName( tform );
-		//:( tn );
-
-		if ( "Projection" == tn )
-			makeProjection( tform );
-		if ( "ProjectionX" == tn )
-			makeProjectionX( tform );
-		if ( "ProjectionY" == tn )
-			makeProjectionY( tform );
-		if ( "Add" == tn )
-			makeAdd( tform );
-		if ( "Divide" == tn )
-			makeDivide( tform );
-		if ( "Rebin" == tn )
-			makeRebin( tform );
-		if ( "Scale" == tn )
-			makeScale( tform );
-		if ( "Clone" == tn )
-			makeClone( tform );
-		if ( "Draw" == tn )
-			makeDraw( tform );
-		if ( "Smooth" == tn )
-			makeSmooth( tform );
-		if ( "CDF" == tn )
-			makeCDF( tform );
-		if ( "Style" == tn )
-			transformStyle( tform );
-		if ( "SetBinError" == tn )
-			makeSetBinError( tform );
-		if ( "BinLabels" == tn || "SetBinLabels" == tn )
-			makeBinLabels( tform );
-		if ( "Sumw2" == tn )
-			makeSumw2( tform );
-		if ( "ProcessLine" == tn )
-			makeProcessLine( tform );
-		if ( "Assign" == tn )
-			makeAssign( tform );
-		
-
-	}
-}
-
-void VegaXmlPlotter::makeSetBinError( string _path ){
-	DSCOPE();
-	
-	TH1 * h = findHistogram( _path, 0 );
-	TH2 *h2 = dynamic_cast<TH2*>(h);
-	TH3 *h3 = dynamic_cast<TH3*>(h);
-
-	if ( nullptr == h ) {
-		LOG_F( ERROR, "Histogram is not valid for Transform @ %s", _path.c_str() );
-		return;
-	}
-
-	float value = config.getFloat( _path + ":value", 0 );
-
-	if ( nullptr != h3  ){
-		for ( int i = 1; i <= h3->GetXaxis()->GetNbins(); i++ ){
-			for ( int j = 1; j <= h3->GetYaxis()->GetNbins(); j++ ){
-				for ( int k = 1; k <= h3->GetZaxis()->GetNbins(); k++ ){
-					int b = h3->GetBin( i, j, k );
-					h3->SetBinError( b, value );
-				}
-			}
-		}	
-	}
-	if ( nullptr != h2  ){
-		for ( int i = 1; i <= h2->GetXaxis()->GetNbins(); i++ ){
-			for ( int j = 1; j <= h2->GetYaxis()->GetNbins(); j++ ){
-				int b = h2->GetBin( i, j );
-				h2->SetBinError( b, value );
-			}
-		}	
-	}
-	for ( int i = 1; i <= h->GetXaxis()->GetNbins(); i++ ){
-		h->SetBinError( i, value );
-	}
-}
-
-
-void VegaXmlPlotter::makeProjection( string _path ){
-	DSCOPE();
-	if ( !config.exists( _path + ":save_as" ) ){
-		// ERRORC( "Must provide " << quote( "save_as" ) << " attribute to save transformation" );
-		return;
-	}
-
-	string nn = config.getXString( _path + ":save_as" );
-	string axis = config.getXString( _path + ":axis", "x" );
-
-	TH1 * h = findHistogram( _path, 0 );
-	TH2 *h2 = dynamic_cast<TH2*>(h);
-	TH3 *h3 = dynamic_cast<TH3*>(h);
-	
-	if ( nullptr == h ) {
-		LOG_F( ERROR, "Histogram is not valid for Transform @ %s", _path.c_str() );
-		return;
-	}
-
-	if ( nullptr != h3 ){
-		LOG_F( INFO, "Projecting TH3" );
-		if ( "x" == axis || "X" == axis ){
-			LOG_F( INFO, "Projecting 1D onto %s Axis", axis.c_str() );
-			int by1 = getProjectionBin( _path, h, "y", "1",  0 );
-			int by2 = getProjectionBin( _path, h, "y", "2", -1 );
-
-			int bz1 = getProjectionBin( _path, h, "z", "1",  0 );
-			int bz2 = getProjectionBin( _path, h, "z", "2", -1 );
-
-			TH1 * hNew = h3->ProjectionX( nn.c_str(), by1, by2, bz1, bz2 );
-			globalHistos[ nn ] = hNew;
-		} else if ( "y" == axis || "Y" == axis ){
-			LOG_F( INFO, "Projecting 1D onto %s Axis", axis.c_str() );
-			int bx1 = getProjectionBin( _path, h, "x", "1",  0 );
-			int bx2 = getProjectionBin( _path, h, "x", "2", -1 );
-
-			int bz1 = getProjectionBin( _path, h, "z", "1",  0 );
-			int bz2 = getProjectionBin( _path, h, "z", "2", -1 );
-
-			TH1 * hNew = h3->ProjectionY( nn.c_str(), bx1, bx2, bz1, bz2 );
-			globalHistos[ nn ] = hNew;
-		} else if ( "z" == axis || "Z" == axis ){
-			LOG_F( INFO, "Projecting 1D onto %s Axis", axis.c_str() );
-			int bx1 = getProjectionBin( _path, h, "x", "1",  0 );
-			int bx2 = getProjectionBin( _path, h, "x", "2", -1 );
-
-			int by1 = getProjectionBin( _path, h, "y", "1",  0 );
-			int by2 = getProjectionBin( _path, h, "y", "2", -1 );
-			LOG_F( INFO, "ProjectionZ : x(%d, %d), y : (%d, %d)", bx1, bx2, by1, by2 );
-			TH1 * hNew = h3->ProjectionZ( nn.c_str(), bx1, bx2, by1, by2 );
-			globalHistos[ nn ] = hNew;
-		} else {
-			// lets do a projection in 3D
-			int bx1 = getProjectionBin( _path, h, "x", "1",  0 );
-			int bx2 = getProjectionBin( _path, h, "x", "2", -1 );
-
-			int by1 = getProjectionBin( _path, h, "y", "1",  0 );
-			int by2 = getProjectionBin( _path, h, "y", "2", -1 );
-
-			int bz1 = getProjectionBin( _path, h, "z", "1",  0 );
-			int bz2 = getProjectionBin( _path, h, "z", "2", -1 );
-
-			if ( axesRangeGiven( _path, "x" ) ){
-				LOG_F( INFO, "x : (%d, %d)", bx1, bx2 );
-				h3->GetXaxis()->SetRange( bx1, bx2 );
-			} else 
-				h3->GetXaxis()->SetRange( 1, -1 );
-			if ( axesRangeGiven( _path, "y" ) ){
-				LOG_F( INFO, "y : (%d, %d)", by1, by2 );
-				h3->GetYaxis()->SetRange( by1, by2 );
-			} else 
-				h3->GetYaxis()->SetRange( 1, -1 );
-			if ( axesRangeGiven( _path, "z" ) ){
-				LOG_F( INFO, "z : (%d, %d)", bz1, bz2 );
-				h3->GetZaxis()->SetRange( bz1, bz2 );
-			} else 
-				h3->GetZaxis()->SetRange( 1, -1 );
-			
-			TH1 * hNew = (TH1*)h3->Project3D( axis.c_str() );
-			hNew->SetName( nn.c_str() );
-			globalHistos[ nn ] = hNew;
-		} // else 2D projection
-
-	} else if ( nullptr != h2 ){
-		if ( "x" == axis || "X" == axis )
-			return makeProjectionX( _path );
-		else 
-			return makeProjectionY( _path );
-	}
-
-}
-
-
-void VegaXmlPlotter::makeProjectionX( string _path){
-	DSCOPE();
-	if ( !config.exists( _path + ":save_as" ) ){
-		return;
-	}
-
-	string d = config.getXString( _path + ":data" );
-	string n = config.getXString( _path + ":name" );
-	string nn = config.getXString( _path + ":save_as" );
-	
-	TH1 * h = findHistogram( _path, 0 );
-	if ( nullptr == h ) {
-		return;
-	}
-	LOG_F( INFO, "h = %p", h );
-	double y1 = -999;
-	int b1 = config.getInt( _path + ":b1", 0 );
-	if ( config.exists( _path + ":y1" ) ){
-		y1 = config.getDouble( _path + ":y1", -1 );
-		//INFOC( "ProjectionX y1=" << y1 );
-		b1 = ((TH2*)h)->GetYaxis()->FindBin( y1 );
-	}
-	
-	double y2 = -999;
-	int b2 = config.getInt( _path + ":b2", -1 );
-	if ( config.exists( _path + ":y2" ) ){
-		y2 = config.getDouble( _path + ":y2", -1 );
-		//INFOC( "ProjectionX y2=" << y2 );
-		b2 = ((TH2*)h)->GetYaxis()->FindBin( y2 );
-	}
-
-	LOG_F( INFO, "y = (%f, %f), b = (%d, %d)", y1, y2, b1, b2 );
-	//INFOC( "ProjectionX [" << nn << "] b1=" << b1 << ", b2="<<b2 );
-
-	double step = config.getDouble( _path + ":step", -1.0 );
-	if ( step > 0.0 && y1 != -999 && y2 != -999 ){
-		LOG_F( INFO, "STEP PROJECTION X" );
-		for (double y = y1; y <= y2; y += step ){
-			config.set( _path + ":step", "" ); // prevent inf recursion
-			config.set( _path +":save_as", nn + "_" + dtes( y, "p" ) + "_" + dtes( y + step, "p" ) );
-			config.set( _path + ":y1", dts( y ) );
-			config.set( _path + ":y2", dts( y + step ) );
-
-			makeProjectionX( _path );
-		}
-		return;
-	} 
-
-	LOG_F( INFO, "doing proj" );
-	TH2 * h2 = dynamic_cast<TH2*>( h );
-	if ( nullptr == h2 ){
-		LOG_F( ERROR, "Histogram (%s) is not 2D", n.c_str() );
-		return;
-	}
-	TH1 * hOther = ((TH2*)h)->ProjectionX( nn.c_str(), b1, b2 );
-
-	LOG_F( INFO, "hProjected(%s)=%p", nn.c_str(), hOther );
-	globalHistos[ nn ] = hOther;
-}
-
-
-
-void VegaXmlPlotter::makeProjectionY( string _path){
-	DSCOPE();
-	if ( !config.exists( _path + ":save_as" ) ){
-		// ERRORC( "Must provide " << quote( "save_as" ) << " attribute to save transformation" );
-		return;
-	}
-
-	string d = config.getXString( _path + ":data" );
-	string n = config.getXString( _path + ":name" );
-	TH1 * h = findHistogram( _path, 0 );
-	if ( nullptr == h ) {
-		// ERRORC( "Could not find histogram " << quote( d + "/" + n ) );
-		return;
-	}
-	string nn = config.getXString( _path + ":save_as" );
-
-	int b1 = config.getInt( _path + ":b1", 0 );
-	if ( config.exists( _path + ":x1" ) ){
-		double x1 = config.getDouble( _path + ":x1", -1 );
-		// INFOC( "ProjectionY x1=" << x1 );
-		b1 = ((TH2*)h)->GetYaxis()->FindBin( x1 );
-	}
-	
-	int b2 = config.getInt( _path + ":b2", -1 );
-	if ( config.exists( _path + ":x2" ) ){
-		double x2 = config.getDouble( _path + ":x2", -1 );
-		// INFOC( "ProjectionY x2=" << x2 );
-		b2 = ((TH2*)h)->GetYaxis()->FindBin( x2 );
-	}
-	//INFOC( "ProjectionX [" << nn << "] b1=" << b1 << ", b2="<<b2 );
-
-	TH1 * hOther = ((TH2*)h)->ProjectionY( nn.c_str(), b1, b2 );
-	h = hOther;
-
-	globalHistos[ nn ] = h;
-
-}
-
-void VegaXmlPlotter::makeMultiAdd( string _path ){
-	DSCOPE();
-	if ( !config.exists( _path + ":save_as" ) ){
-		// ERRORC( "Must provide " << quote( "save_as" ) << " attribute to save transformation" );
-		return;
-	}
-
-
-	string d = config.getXString( _path + ":data" );
-	vector<string> n = config.getStringVector( _path + ":name" );
-	if ( n.size() < 1 ) {
-		n = config.getStringVector( _path + ":names" );
-	}
-
-	string nn = config.getXString( _path + ":save_as" );
-
-	// TODO allow modifier for each
-	// double mod = config.getDouble( _path + ":mod", 1.0 );
-
-	TH1 * hFirst = findHistogram( d, n[0] );
-	if ( nullptr == hFirst ){
-		// ERRORC( "Hit Null Histo " << n[0] );
-		return;
-	}
-	TH1 * hSum = (TH1*)hFirst->Clone( nn.c_str() );
-
-	for ( int i = 1; i < n.size(); i++ ){
-		TH1 * h = findHistogram( d, n[i] );
-		if ( nullptr == h ) {
-			LOG_F( WARNING, "Cannot add n=(%s), nullptr", n[i].c_str() );
-			continue;
-		}
-		hSum ->Add( h );
-	}
-
-	globalHistos[nn] = hSum;
-}
-
-void VegaXmlPlotter::makeAdd( string _path){
-	DSCOPE();
-	if ( !config.exists( _path + ":save_as" ) ){
-		// ERRORC( "Must provide " << quote( "save_as" ) << " attribute to save transformation" );
-		return;
-	}
-
-	if ( config.exists( _path+":name" ) && config.getStringVector( _path+":name" ).size() > 1 ){
-		makeMultiAdd( _path );
-		return;
-	}
-	if ( config.exists( _path+":names" ) && config.getStringVector( _path+":names" ).size() > 1 ){
-		makeMultiAdd( _path );
-		return;
-	}
-
-	string d = config.getXString( _path + ":data" );
-	string n = config.getXString( _path + ":name" );
-	string nn = config.getXString( _path + ":save_as" );
-	double mod = config.getDouble( _path + ":mod", 1.0 );
-
-	TH1 * hA = findHistogram( _path, 0, "A" );
-	TH1 * hB = findHistogram( _path, 0, "B" );
-	if ( nullptr == hA || nullptr == hB ) {
-		// ERRORC( "Could not find histogram" );
-		return;
-	}
-
-	TH1 * hSum = (TH1*) hA->Clone( nn.c_str() );
-	hSum->Add( hB, mod );
-	globalHistos[nn] = hSum;
-}
-void VegaXmlPlotter::makeDivide( string _path){
-	DSCOPE();
-	if ( !config.exists( _path + ":save_as" ) ){
-		// ERRORC( "Must provide " << quote( "save_as" ) << " attribute to save transformation" );
-		return;
-	}
-
-	string d = config.getXString( _path + ":data" );
-	string n = config.getXString( _path + ":name" );
-	string nn = config.getXString( _path + ":save_as" );
-
-	TH1 * hNum = findHistogram( _path, 0, "A" );
-	TH1 * hDen = findHistogram( _path, 0, "B" );
-	if ( nullptr == hNum || nullptr == hDen ) {
-		// ERRORC( "Could not find histogram" );
-		return;
-	}
-
-	TH1 * hOther = (TH1*) hNum->Clone( nn.c_str() );
-	hOther->Divide( hDen );
-	globalHistos[nn] = hOther;
-}
-
-void VegaXmlPlotter::makeRebin( string _path ){
-	DSCOPE();
-	
-	// rebins to array of bin edges
-	bool in_place = false;
-	if ( !config.exists( _path + ":save_as" ) ){
-		LOG_F( WARNING, "Rebin does not support in-place!" );
-		in_place = true;
-		return;
-	}
-
-	string d = config.getXString( _path + ":data" );
-	string n = config.getXString( _path + ":name" );
-	TH1 * h = findHistogram( _path, 0 );
-	if ( nullptr == h ) {
-		// ERRORC( "Could not find histogram " << quote( d + "/" + n ) );
-		LOG_F( ERROR, "Could not find histogram " );
-		return;
-	}
-
-
-	string nn = config.getXString( _path + ":save_as" );
-	TH1 * hOther = nullptr;//((TH1*)h)->Clone( nn.c_str() );
-
-	HistoBins bx, by, bz;
-	if ( config.exists( _path +":bins_x" )  ){
-		if ( config.exists( config.getXString( _path+":bins_x" ) ) ){
-			bx.load( config, config.getXString( _path+":bins_x" ) );
-		} else {
-			bx.load( config, _path + ":bins_x" );
-		}
-	}
-	if ( config.exists( _path +":bins_y" )  ){
-		if ( config.exists( config.getXString( _path+":bins_y" ) ) ){
-			by.load( config, config.getXString( _path+":bins_y" ) );
-		} else {
-			by.load( config, _path + ":bins_y" );
-		}
-	}
-	if ( config.exists( _path +":bins_z" )  ){
-		if ( config.exists( config.getXString( _path+":bins_z" ) ) ){
-			bz.load( config, config.getXString( _path+":bins_z" ) );
-		} else {
-			bz.load( config, _path + ":bins_z" );
-		}
-	}
-
-	int nDim = 0;
-	if ( bx.nBins() > 0 ) nDim++;
-	if ( by.nBins() > 0 ) nDim++;
-	if ( bz.nBins() > 0 ) nDim++;
-
-	DLOG( "nDim=%d", nDim );
-
-
-	if ( nDim == 1 && bx.nBins() > 0 ){
-		hOther = h->Rebin( bx.nBins(), nn.c_str(), bx.bins.data() );
-		LOG_F( INFO, "Saving histogram \"%s\" ", nn.c_str() );
-		globalHistos[nn] = hOther;
-	} else if ( nDim == 1 ){
-		// ERRORC( "Cannot Rebin, check error message for x bins" );
-	}
-
-	if ( nDim == 2 && bx.nBins() > 0 && by.nBins() > 0 && nullptr != dynamic_cast<TH2*>( h ) ){
-		hOther = new TH2D( nn.c_str(), h->GetTitle(), bx.nBins(), bx.bins.data(), by.nBins(), by.bins.data() );
-		HistoBins::rebin2D( dynamic_cast<TH2*>(h), dynamic_cast<TH2*>(hOther) );
-		LOG_F( INFO, "Saving histogram \"%s\" ", nn.c_str() );
-		globalHistos[nn] = hOther;
-	} else if ( nDim == 2 ){
-		if ( nullptr == dynamic_cast<TH2*>( h ) ){
-			LOG_F( ERROR, "Input histogram is not 2D" );
-		} else {
-			LOG_F( ERROR, "Cannot Rebin, check error for bins x and y" );
-		}
-	}
-
-	if ( nDim == 3 && bx.nBins() > 0 && by.nBins() > 0 && bz.nBins() > 0 && nullptr != dynamic_cast<TH3*>( h ) ){
-		hOther = new TH3D( nn.c_str(), h->GetTitle(), bx.nBins(), bx.bins.data(), by.nBins(), by.bins.data(), bz.nBins(), bz.bins.data() );
-		HistoBins::rebin3D( dynamic_cast<TH3*>(h), dynamic_cast<TH3*>(hOther) );
-		LOG_F( INFO, "Saving histogram \"%s\" ", nn.c_str() );
-		globalHistos[nn] = hOther;
-	} else if ( nDim == 3 ){
-		if ( nullptr == dynamic_cast<TH2*>( h ) ){
-			LOG_F( ERROR, "Input histogram is not 3D" );
-		} else {
-			LOG_F( ERROR, "Cannot Rebin, check error for bins x, y, z" );
-		}
-	}
-}
-
-void VegaXmlPlotter::makeScale( string _path ){
-	DSCOPE();
-	bool in_place = false;
-	if ( !config.exists( _path + ":save_as" ) ){
-		in_place = true;
-	}
-
-	string d = config.getXString( _path + ":data" );
-	string n = config.getXString( _path + ":name" );
-	// LOG_F( INFO, "n=%s, d=%s, nameOnly=%s, dataOnly=%s", n.c_str(), d.c_str(), nameOnly( n ).c_str(), dataOnly( n ).c_str() );
-	string fqn = fullyQualifiedName( dataOnly( n ), nameOnly( n ) );
-	if ( "" != d )
-		fqn = fullyQualifiedName( d, nameOnly( n ) );
-
-	TH1 * h = findHistogram( _path, 0 );
-	if ( nullptr == h ) {
-		return;
-	}
-
-	LOG_F( WARNING, "Scaling %s in place (overwritting)", n.c_str() );
-	TH1 * hOther = nullptr;
-	string nn = fqn;
-	if ( false == in_place ){
-		nn = config.getXString( _path + ":save_as" );
-		hOther = (TH1*)h->Clone( nn.c_str() );
-	} else {
-		hOther = h;
-	}
-
-	double factor = config.getDouble( _path + ":factor", 1.0 );
-	string opt    = config.getXString( _path +":opt", "" );
-
-	LOG_F( INFO, "h=%p, hother=%p", h, hOther );
-	if ( in_place )
-		LOG_F( INFO, "Scaling %s in place (%s) factor=%f, opt=%s", fqn.c_str(), nn.c_str(), factor, opt.c_str() );
-	else
-		LOG_F( INFO, "Scaling %s, save as %s factor=%f, opt=%s", fqn.c_str(), nn.c_str(), factor, opt.c_str() );
-
-	LOG_F( INFO, "bin107, pre = %f, %f", hOther->GetBinContent( 107 ), h->GetBinContent( 107 ) );
-	hOther->Scale( factor, opt.c_str() );
-	LOG_F( INFO, "bin107, post = %f", hOther->GetBinContent( 107 ) );
-	globalHistos[ nn] = hOther;
-}
-
-void VegaXmlPlotter::makeAssign( string _path ){
-	DSCOPE();
-
-	string varname = config.getString( _path + ":var" );
-	
-
-	string d = config.getString( _path + ":data" );
-	string n = config.getString( _path + ":name" );
-	TH1 * h = findHistogram( _path, 0 );
-
-	if ( nullptr != h ){
-		config.set( "name", h->GetName() );
-		LOG_F( INFO, "Histogram %s available using as h or {name}", h->GetName() );
-		LOG_F( INFO, "TH1 * h = %s", h->GetName() );
-		gROOT->ProcessLine( ( string("TH1 * h = ") + h->GetName()).c_str() );
-	}
-
-	string expr = config.getString( _path + ":expr" );
-
-	LOG_F( INFO, "gROOT->ProcessLine( \"%s\" )", expr.c_str() );
-	
-	TNamed *tmp = new TNamed( "vestibule", "tmp storage"  );
-	gDirectory->Add( tmp );
-	
-	
-	int error = 0;
-
-	// Super crazy shit
-	// first include sstr header (if not done already)
-	// make a stringstream for conversion to char*
-	// Get the TNamed object for passing data
-	// store result of expression in sstr
-	// store result in the title of the TNamed
-	// 
-	if ( false == initializedGROOT ){
-		gROOT->ProcessLine( "#include \"sstream\" " );
-		initializedGROOT = true;
-	}
-	
-	gROOT->ProcessLine( "std::stringstream sstr;" );
-	gROOT->ProcessLine( "TNamed * tn = vestibule;");
-	gROOT->ProcessLine( "tn->GetTitle();" );
-	expr = "sstr << " + expr + ";";
-	gROOT->ProcessLine( expr.c_str() );
-	gROOT->ProcessLine( "tn->SetTitle( sstr.str().c_str() )" );
-	
-
-	
-	// 
-	LOG_F( INFO, "ERROR = %d", error );
-	LOG_F( INFO, "TNamed.title = %s", tmp->GetTitle() );
-	LOG_F( INFO, "ASSIGN [%s] = [%s]", varname.c_str(), tmp->GetTitle() );
-	config.set( varname, string(tmp->GetTitle()) );
-
-	// delete it
-	delete tmp;
-
-}
-
-
-void VegaXmlPlotter::makeProcessLine( string _path ){
-
-	TH1 * h = findHistogram( _path, 0 );
-	if ( nullptr != h ){
-		config.set( "name", h->GetName() );
-		LOG_F( INFO, "Histogram %s available using {name}", h->GetName() );
-	}
-
-	string expr = config.getString( _path + ":expr" );
-	LOG_F( INFO, "gROOT->ProcessLine( \"%s\" )", expr.c_str() );
-	gROOT->ProcessLine( expr.c_str() );
-
-}
-
-void VegaXmlPlotter::makeDraw( string _path ){
-	DSCOPE();
-
-	string d = config.getXString( _path + ":data" );
-	string nn = nameOnly( config.getXString( _path + ":name" ) );
-	TH1 * h = makeHistoFromDataTree( _path, 0 ); //findHistogram( _path, 0 );
-	if ( nullptr == h ) {
-		LOG_F( ERROR, "Could not make %s", nn.c_str() );
-		return;
-	}
-
-	// string nn = config.getXString( _path + ":save_as" );
-	globalHistos[ nn ] = h;
-}
-
-
-void VegaXmlPlotter::makeSmooth( string _path ){
-	DSCOPE();
-
-	bool in_place = false;
-	if ( !config.exists( _path + ":save_as" ) ){
-		LOG_F( WARNING, "Smoothing histogram in place!" );
-		in_place = true;
-	}
-
-	string d = config.getString( _path + ":data" );
-	string n = config.getString( _path + ":name" );
-	TH1 * h = findHistogram( _path, 0 );
-	if ( nullptr == h ) {
-		LOG_F( ERROR, "could not find histo %s %s", d.c_str(), n.c_str() );
-		return;
-	}
-
-	int nSmooth = config.get<int>( _path + ":n", 1 );
-	
-	if ( in_place ){
-		LOG_F( INFO, "Smoothing histogram %d times", nSmooth );
-		h->Smooth( nSmooth );
-	} else {
-		string nn = config.getString( _path + ":save_as" );
-		TH1 * hOther = (TH1*)h->Clone( nn.c_str() );
-		hOther->Smooth( nSmooth );
-		LOG_F( INFO, "Smoothing histogram %s %d times", nn.c_str(), nSmooth );
-		globalHistos[nn] = hOther;
-	}
-}
-
-
-void VegaXmlPlotter::makeCDF( string _path ){
-	DSCOPE();
-
-	
-	if ( !config.exists( _path + ":save_as" ) ){
-		LOG_F( WARNING, "Cannot make CDF in place, abort" );
-		return;
-	}
-
-	string d = config.getString( _path + ":data" );
-	string n = config.getString( _path + ":name" );
-	TH1 * h = findHistogram( _path, 0 );
-	if ( nullptr == h ) {
-		LOG_F( ERROR, "could not find histo %s %s", d.c_str(), n.c_str() );
-		return;
-	}
-
-	bool forward = config.get<bool>( _path + ":forward", false );
-	
-	string nn = config.getString( _path + ":save_as" );
-	TH1 * hOther = (TH1*)h->Clone( nn.c_str() );
-	hOther = hOther->GetCumulative( forward, "" );
-	LOG_F( INFO, "Made CDF for histogram %s, with forward=%s", nn.c_str(), bts(forward).c_str() );
-	globalHistos[nn] = hOther;
-	
-}
-
-
-void VegaXmlPlotter::makeBinLabels( string _path ){
-	LOG_F( INFO, "" );
-	if ( !config.exists( _path + ":save_as" ) ){
-		LOG_F( WARNING, "Cannot make CDF in place, abort" );
-		return;
-	}
-
-	string d = config.getString( _path + ":data" );
-	string n = config.getString( _path + ":name" );
-	TH1 * h = findHistogram( _path, 0 );
-	if ( nullptr == h ) {
-		LOG_F( ERROR, "could not find histo %s %s", d.c_str(), n.c_str() );
-		return;
-	}
-	
-	string nn = config.getString( _path + ":save_as" );
-	TH1 * hOther = (TH1*)h->Clone( nn.c_str() );
-
-	vector<string> labels = config.getStringVector( _path + ":labels" );
-	TAxis *axis = hOther->GetXaxis();
-
-	for ( size_t i = 0; i < labels.size(); i++ ){
-		axis->SetBinLabel( i+1, labels[i].c_str() );
-		LOG_F( INFO, "Seeting bin[%lu] label to \"%s\" ", i+1, labels[i].c_str() );
-	}
-	// LOG_F( INFO, "Made CDF for histogram %s, with forward=%s", nn.c_str(), bts(forward).c_str() );
-	globalHistos[nn] = hOther;
-}
-
-
-
-void VegaXmlPlotter::makeClone( string _path ){
-
-	if ( !config.exists( _path + ":save_as" ) ){
-		return;
-	}
-
-	string d = config.getXString( _path + ":data" );
-	string n = config.getXString( _path + ":name" );
-
-	TH1 * h = findHistogram( _path, 0 );
-	if ( nullptr == h ) {
-		return;
-	}
-
-	config.set( "uname", underscape(n) );
-
-	string nn = config.getXString( _path + ":save_as" );
-	TH1 * hOther = (TH1*)h->Clone( nn.c_str() );
-
-	// if bin ranges or axis ranges exist then clear and clone subrange
-	if ( config.exists( _path+":b1" ) || config.exists( _path+":x1" ) ){
-		hOther->Reset();
-		int b1 = config.getInt( _path + ":b1", 0 );
-		if ( config.exists( _path + ":x1" ) ){
-			double x1 = config.getDouble( _path + ":x1", -1 );
-			b1 = h->GetXaxis()->FindBin( x1 );
-		}
-		
-		int b2 = config.getInt( _path + ":b2", -1 );
-		if ( config.exists( _path + ":x2" ) ){
-			double x2 = config.getDouble( _path + ":x2", -1 );
-			b2 = h->GetXaxis()->FindBin( x2 );
-		}
-
-		// now clone the subrange
-		HistoBook::cloneBinRange( h, hOther, b1, b2 );
-	}
-
-	globalHistos[nn] = hOther;
-}
-
-void VegaXmlPlotter::makeSumw2( string _path ){
-
-	
-
-	string d = config.getXString( _path + ":data" );
-	string n = config.getXString( _path + ":name" );
-
-	TH1 * h = findHistogram( _path, 0 );
-	if ( nullptr == h ) {
-		LOG_F( ERROR, "could not find histogram" );
-		return;
-	}
-
-	config.set( "uname", underscape(n) );
-
-
-	TH1 * hOther = h;
-	string nn = nameOnly( n );
-
-	if ( !config.exists( _path + ":save_as" ) ){
-		LOG_F( WARNING, "Sumw2 in place" );
-		nn = config.getXString( _path + ":save_as" );
-		hOther = (TH1*)h->Clone( nn.c_str() );
-	}
-
-	hOther->Sumw2();
-
-	globalHistos[nn] = hOther;
-}
-
-void VegaXmlPlotter::transformStyle( string _path ){
-	DSCOPE();
-	TH1 * h = findHistogram( _path, 0 );
-	if ( nullptr == h ) {
-		return;
-	}
-
-	RooPlotLib rpl;
-
-	DLOG( "settign style from: %s, and %s", (_path + ":style").c_str(), (_path + ".style").c_str() );
-	rpl.style( h ).set( config, _path).set( config, _path + ":style" ).set( config, _path + ".style" );
-
-}
-
-
-
-void VegaXmlPlotter::drawCanvas( string _path ){
-	DSCOPE();
-
-	XmlCanvas xcanvas( config, _path );
-	
-	vector<string> ppads = config.childrenOf( _path, "Pad" );
-	vector<string> pplots = config.childrenOf( _path, "Plots" );
-	vector<string> paths = ppads;
-	
-	if ( ppads.size() <= 0 ) paths = pplots;
-
-	for ( string p : paths ){
-		string n = config.getXString( p + ":name", "" );
-		//INFOC( "Painting PAD " << n );
-		if ( "" == n ){
-			// WARNC( "Skipping pad without name" );
-			continue;
-		}
-
-		XmlPad * xpad = xcanvas.activatePad( n );
-
-		// move pad to origin
-		xpad->moveToOrigin();
-		xpad->getRootPad()->Update();
-		
-		makePlot( p );
-
-		xpad->reposition();
-		xpad->getRootPad()->Update();
-		// pad->Update();
-		// pad->Print( ("pad_" + n + ".pdf").c_str() );
-		// makeExports( p );
-
-	} // loop over pads
-	xcanvas.getCanvas()->Update();
-
-	makeExports( _path, xcanvas.getCanvas() );
-}
 
 
 map<string, TObject*> VegaXmlPlotter::dirMap( TDirectory *dir, string prefix, bool dive ) {

@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+	<!-- List your data sources -->
+	<!-- Can be files or trees, later access them by name -->
+	<Data name="sample" url="sample_data.root" inline="true" />
+
+	<!-- If a Log:url is given, then a log will be written -->
+	<Log url="inline.log" />
+
+	<ExportConfig url="inline-compiled.xml" />
+
+	<!-- Things out here apply to all plots unless overriden -->
+	<!-- Set the margins for a global TCanvas -->
+	<Margins left="0.10" right="0.12" top="0.1" bottom="0.15" />
+	<!-- Can also be set as an array (t, r, b, l) -->
+	<!-- <Margins>t, r, b, l</Margins> -->
+
+	<!-- Draw Latex 
+		x/y 	NDC coords
+		ux/uy 	User coords (i.e. on axis coords)
+		text 	Text to be displayed, can contain Latex
+		size 	Raw size of text - in ROOT units (bleh)
+		point 	Scaled text size, 12 point is reasonale size, 64 is large etc.
+	-->
+	<TLatex x="0.30" y="0.87" text="Dataset details here" size="0.03"/>
+
+	<Color>red</Color>
+	<Color>blue, 0.25</Color>
+
+
+	<Canvas cols="24" rows="24">
+	
+		<Pad gx="0, 24" gy="0, 12" m="0.05" lm="0.1" name="1" > 
+			<!-- <Axes lsx="-50, 50, 500" lsy="1, 1e4, 100" optstat="0" axisdigits="2"/> -->
+
+			<Histo name="sample/h1" style="styles.TH1">
+				<style logy="1" draw="same HIST" optstat="0" linecolor="#000000"/>
+			</Histo>
+
+			<Histo data="sample" name="h2" style="styles.TH1">
+				<style draw="same HIST" line-color="blue" fca="blue, 0.25" optstat="0" />
+			</Histo>
+
+			<Legend>
+				<Entry name="h1" title="gaussian" opt="lpe"/>
+				<Entry name="h2" title="Landau" opt="lpe" />
+				
+				<Position x1="0.15" x2="0.35" y1="0.6" y2="0.8"/>
+			</Legend>
+
+			<TLine x1="-10" x2="10" y1="10" y2="10" color="#000"/>
+			<Export url="inline-pad-1.pdf" />
+		</Pad>
+
+		<Pad gx="0, 24" gy="12, 24" m="0.05" name="2" > 
+			
+
+			<Histo name="sample/h3" style="styles.TH1">
+				<style logz="1" draw="colz" optstat="0" linecolor="#000000"/>
+			</Histo>
+
+			<TLine x1="-10" x2="10" y1="10" y2="10" color="#000"/>
+			<Export url="inline-pad-2.pdf" />
+		</Pad>
+
+		<Export url="inline-pad-canvas.pdf" />
+	</Canvas>
+
+
+	<styles>
+		<TH1 title="basic TH1 style; X [units]; Y [units]" color="red" optstat="0"/>
+	</styles>
+
+
+</config>

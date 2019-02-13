@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+	<!-- List your data sources -->
+	<!-- Can be files or trees, later access them by name -->
+	<Data name="tree" treeName="PairDst" url="pair_dst_charge.root" />
+	<TFile url="trees.root"/>
+
+	<Loop var="d" states="d1, d2">
+		<Loop var="m" states="mPt, mEta, mPhi">
+			<Transforms>
+				<Draw name="{d}_{m}" draw="{d}_{m}" select="mChargeSum==0" bins_x="bins.{m}" />
+			</Transforms>
+		</Loop>
+	</Loop>
+	
+
+	<bins>
+		<mPt min="0" max="15" width="0.05" />
+		<mEta min="-1.0" max="1.0" width="0.01" />
+		<mPhi min="-3.2" max="3.2" width="0.01" />
+	</bins>
+
+</config>
