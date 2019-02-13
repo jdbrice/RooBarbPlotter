@@ -139,7 +139,7 @@ public:
 	map<string, TH1 * > globalHistos;
 	map<string, TGraph * > globalGraphs;
 
-	bool initializedGROOT = false;
+	// bool initializedGROOT = false;
 
 	TFile * dataOut = nullptr;
 	virtual void loadDataFile( string _path );
