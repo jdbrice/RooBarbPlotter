@@ -282,6 +282,7 @@ void VegaXmlPlotter::loadData(){
 	}
 } // loadData
 
+
 TObject* VegaXmlPlotter::findObject( string _path ){
 	DSCOPE();
 
@@ -360,6 +361,12 @@ TH1* VegaXmlPlotter::findHistogram( string _path, int iHist, string _mod ){
 		name = nameOnly( name );
 	}
 
+	// finally look for histos we made and named in the ttree drawing
+	if ( globalHistos.count( name ) > 0 && globalHistos[ name ] ){
+		LOG_F( INFO, "Found histogram in mem pool [%s]", name.c_str() );
+		return globalHistos[ name ];
+	}
+
 	DLOG( "data=%s, name=%s, dataFiles.size()=%lu", data.c_str(), name.c_str(), dataFiles.size() );
 	if ( "" == data && dataFiles.size() >= 1 ){
 		data = dataFiles.begin()->first;
@@ -392,6 +399,7 @@ TH1* VegaXmlPlotter::findHistogram( string _path, int iHist, string _mod ){
 	if ( globalHistos.count( name ) > 0 && globalHistos[ name ] ){	
 		return globalHistos[ name ];
 	}
+
 
 
 	return nullptr;
@@ -511,6 +519,8 @@ void VegaXmlPlotter::positionOptStats( string _path, TPaveStats * st ){
 	if ( config.exists( _path + ".OptStats:y2" ) )
 		st->SetY2NDC( config.getFloat( _path + ".OptStats:y2" ) ); 
 } // positionOptStats
+
+
 
 map<string, TObject*> VegaXmlPlotter::dirMap( TDirectory *dir, string prefix, bool dive ) {
 	DSCOPE();

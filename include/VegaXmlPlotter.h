@@ -26,6 +26,7 @@ using namespace std;
 #include "TApplication.h"
 #include "TColor.h"
 #include "TDirectory.h"
+#include "TImage.h"
 
 #if VEGADEBUG > 0
 	#define DLOG( ... ) LOG_F(INFO, __VA_ARGS__)
@@ -138,6 +139,8 @@ public:
 	map<string, TH1 * > globalHistos;
 	map<string, TGraph * > globalGraphs;
 
+	bool initializedGROOT = false;
+
 	TFile * dataOut = nullptr;
 	virtual void loadDataFile( string _path );
 	virtual int numberOfData();
@@ -147,7 +150,6 @@ public:
 	virtual TObject* findObject( string _data );
 	virtual TH1* findHistogram( string _data, string _name );
 	virtual TH1* findHistogram( string _path, int iHist, string _mod="" );
-
 	// virtual TH1* makeHistogram( string _path, string &fqn );
 	// virtual TGraph* makeGraph( string _path, string &fqn );
 	// virtual map<string, shared_ptr<TF1> > makeTF( string _path );
@@ -238,10 +240,16 @@ public:
 	}
 
 	string nameOnly( string fqn ){
-		return fqn.substr( fqn.find( "/" ) + 1 );
+		if ( fqn.find( "/" ) != string::npos )
+			return fqn.substr( fqn.find( "/" ) + 1 );
+		else 
+			return fqn;
 	} 
 	string dataOnly( string fqn ){
-		return fqn.substr( 0, fqn.find( "/" ) );
+		if ( fqn.find( "/" ) != string::npos )
+			return fqn.substr( 0, fqn.find( "/" ) );
+		else 
+			return "";
 	} 
 	string fullyQualifiedName( string _data, string _name ){
 		if ( "" == _data )
