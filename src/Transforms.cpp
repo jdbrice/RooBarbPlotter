@@ -600,11 +600,11 @@ void VegaXmlPlotter::exec_transform_CDF( string _path ){
 		return;
 	}
 
+	LOG_F( INFO, "I(histo) = %f", h->Integral() );
 	bool forward = config.get<bool>( _path + ":forward", false );
 	
 	string nn = config.getString( _path + ":save_as" );
-	TH1 * hOther = (TH1*)h->Clone( nn.c_str() );
-	hOther = hOther->GetCumulative( forward, "" );
+	TH1 * hOther = (TH1*)h->GetCumulative( forward )->Clone( nn.c_str() );
 	LOG_F( INFO, "Made CDF for histogram %s, with forward=%s", nn.c_str(), bts(forward).c_str() );
 	globalHistos[nn] = hOther;
 }
