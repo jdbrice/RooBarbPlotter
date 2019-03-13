@@ -47,6 +47,7 @@ void VegaXmlPlotter::init(){
 	handle_map[ "TLegend"      ] = &VegaXmlPlotter::exec_TLegend;
 	handle_map[ "Legend"       ] = &VegaXmlPlotter::exec_TLegend;
 	handle_map[ "Palette"      ] = &VegaXmlPlotter::exec_Palette;
+	handle_map[ "ColorAxis"    ] = &VegaXmlPlotter::exec_ColorAxis;
 
 	handle_map[ "StatBox"      ] = &VegaXmlPlotter::exec_StatBox;
 	handle_map[ "Histo"        ] = &VegaXmlPlotter::exec_Histo;
@@ -54,6 +55,7 @@ void VegaXmlPlotter::init(){
 	handle_map[ "TF1"          ] = &VegaXmlPlotter::exec_TF1;
 
 	handle_map[ "Canvas"       ] = &VegaXmlPlotter::exec_Canvas;
+	handle_map[ "Clear"        ] = &VegaXmlPlotter::exec_Clear;
 	handle_map[ "Pad"          ] = &VegaXmlPlotter::exec_Pad;
 	handle_map[ "Margins"      ] = &VegaXmlPlotter::exec_Margins;
 
@@ -69,6 +71,7 @@ void VegaXmlPlotter::init(){
 	handle_map[ "MultiAdd"     ] = &VegaXmlPlotter::exec_transform_MultiAdd;
 	handle_map[ "Add"          ] = &VegaXmlPlotter::exec_transform_Add;
 	handle_map[ "Divide"       ] = &VegaXmlPlotter::exec_transform_Divide;
+	handle_map[ "Difference"   ] = &VegaXmlPlotter::exec_transform_Difference;
 	handle_map[ "Rebin"        ] = &VegaXmlPlotter::exec_transform_Rebin;
 	handle_map[ "Scale"        ] = &VegaXmlPlotter::exec_transform_Scale;
 	handle_map[ "Normalize"    ] = &VegaXmlPlotter::exec_transform_Normalize;
@@ -357,7 +360,7 @@ TH1* VegaXmlPlotter::findHistogram( string _path, int iHist, string _mod ){
 
 	if ( "" == data && name.find( "/" ) != string::npos ){
 		data = dataOnly( name );
-		//INFOC( "data from name " << quote( data ) );
+		LOG_F( INFO, "Setting data to %s", data.c_str()  );
 		name = nameOnly( name );
 	}
 
@@ -581,7 +584,7 @@ vector<string> VegaXmlPlotter::glob( string query ){
 		for ( auto kv : globalHistos ){
 			string oType = kv.second->ClassName();
 			DLOG( "[%s] = %s", kv.first.c_str(), oType.c_str() );
-			if ( kv.first.substr( 0, pos ) == qc ){
+			if ( kv.first.substr( 0, pos ) == qc && typeMatch( kv.second, type ) ){
 				names.push_back( kv.first );
 				DLOG( "Query MATCH: %s", kv.first.c_str() );
 			}

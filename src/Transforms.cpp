@@ -371,6 +371,63 @@ void VegaXmlPlotter::exec_transform_Divide( string _path){
 	globalHistos[nn] = hOther;
 }
 
+void VegaXmlPlotter::exec_transform_Difference( string _path){
+	DSCOPE();
+	if ( !config.exists( _path + ":save_as" ) ){
+		LOG_F( ERROR, "must have a save_as attribute" );
+		return;
+	}
+
+	string d = config.getXString( _path + ":data" );
+	string n = config.getXString( _path + ":name" );
+	string nn = config.getXString( _path + ":save_as" );
+
+	string opt = config.get<string>( _path +":opt", "" );
+	float c1 = config.get<float>( _path +":c1", 1.0 );
+	float c2 = config.get<float>( _path +":c2", 1.0 );
+
+	TH1 * hA = findHistogram( _path, 0, "A" );
+	TH1 * hB = findHistogram( _path, 0, "B" );
+	if ( nullptr == hA || nullptr == hB ) {
+		LOG_F( ERROR, "hA=%p, hB=%p, something is NULL", hA, hB );
+		return;
+	}
+
+
+	if ( "" == opt ){
+		LOG_F( INFO, "%s = %s - %s", nn.c_str(), hA->GetName(), hB->GetName() );
+	} else if ( "rel" == opt ){
+		LOG_F( INFO, "%s = (%s - %s) / %s", nn.c_str(), hA->GetName(), hB->GetName(), hA->GetName() );
+	}
+	TH1 * hOther = (TH1*) hA->Clone( nn.c_str() );
+	hOther->Reset(); // we just want the binning
+	// TODO, support 2D, 3D explicitly if needed
+	LOG_IF_F(ERROR, hA->GetNbinsX() != hB->GetNbinsX(), "Histograms must have the same number of bins! Cannot make difference histogram" );
+	for ( size_t i = 1; i <= hA->GetNbinsX(); i++ ){
+		float vA = hA->GetBinContent( i );
+		float vB = hB->GetBinContent( i );
+
+		float eA = hA->GetBinError( i );
+		float eB = hB->GetBinError( i );
+
+		float value = vA - vB;
+		float error = eA + eB;
+
+		if ( "rel" == opt ){
+			value = value / vA;
+			error = error / vA;
+		}
+
+		hOther->SetBinContent( i, value );
+		hOther->SetBinError( i, error );
+
+	}
+
+	globalHistos[nn] = hOther;
+}
+
+
+
 void VegaXmlPlotter::exec_transform_Rebin( string _path ){
 	DSCOPE();
 	

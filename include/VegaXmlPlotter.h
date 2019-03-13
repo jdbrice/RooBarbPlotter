@@ -52,7 +52,7 @@ protected:
 	map<string, TH1*> histos;
 	map<string, TGraph*> graphs;
 	map<string, TF1*> funcs;
-	TH1C * current_frame = nullptr;
+	TH1 * current_frame = nullptr;
 
 	XmlCanvas * xcanvas;
 
@@ -86,10 +86,12 @@ public:
 	virtual void exec_TLatex( string _path );
 	virtual void exec_TLegend( string _path );
 	virtual void exec_Canvas( string _path );
+	virtual void exec_Clear( string _path );
 	virtual void exec_Margins( string _path );
 	virtual void exec_TFile( string _path );
 	virtual void exec_Script( string _path );
 	virtual void exec_Palette( string _path );
+	virtual void exec_ColorAxis( string _path );
 
 	// Transforms
 	virtual void exec_Transforms( string _path );
@@ -100,6 +102,7 @@ public:
 	virtual void exec_transform_MultiAdd( string _path);
 	virtual void exec_transform_Add( string _path);
 	virtual void exec_transform_Divide( string _path);
+	virtual void exec_transform_Difference( string _path);
 	virtual void exec_transform_Rebin( string _path);
 	virtual void exec_transform_Scale( string _path);
 	virtual void exec_transform_Normalize( string _path);

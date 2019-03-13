@@ -1,3 +1,4 @@
+#include <algorithm>
 
 #include "loguru.h"
 
@@ -15,6 +16,7 @@
 #include "TTree.h"
 #include "TString.h"
 #include "TEllipse.h"
+#include "TPaletteAxis.h"
 
 // #include "TBufferJSON.h"
 
@@ -98,6 +100,54 @@ void VegaXmlPlotter::exec_children( string _path, string tag_type ){
 	}
 } //exec_children
 
+
+void VegaXmlPlotter::exec_ColorAxis( string _path ) {
+
+	if ( nullptr == current_frame ){
+		LOG_F( ERROR, "Current Frame is NULL, cannot get Color Axis" );
+		return;
+	}
+
+	if ( nullptr == gPad ){
+		LOG_F( ERROR, "gPad is NULL, cannot get Color Axis" );
+		return;
+	}
+
+	gPad->Update();
+	TPaletteAxis* ca = (TPaletteAxis*)current_frame->GetListOfFunctions()->FindObject("palette");
+	if ( nullptr == ca ){
+		LOG_F( ERROR, "ColorAxis is NULL, cannot get Color Axis" );
+		LOG_F( INFO, "Make sure this node is below the colz draw command" );
+	}
+
+	float dW = 0.05;
+	dW = config.get<float>( _path +":w", dW );
+	// LOG_F( INFO, "qw: %f", config.get<float>( _path + ":w") );
+
+	if ( config.exists( _path + ":x" ) ){
+		ca->SetX1NDC( config.get<float>( _path + ":x" ) );
+	}
+
+	ca->SetX2NDC( ca->GetX1NDC() + dW );
+
+
+
+
+	float dH = 0.05;
+	dH = 1.0 - (gPad->GetTopMargin()  + gPad->GetBottomMargin() );
+	dH = config.get<float>( _path + ":h", dH );
+
+	if ( config.exists( _path + ":y" ) ){
+		ca->SetY1NDC( config.get<float>( _path + ":y" ) );
+	}
+
+	ca->SetY2NDC( ca->GetY1NDC() + dH );
+
+
+	LOG_F( INFO, "ColorAxis: x=%0.3f, y=%0.3f, w=%0.3f, h=%0.3f", ca->GetX1NDC(), ca->GetY1NDC(), dW, dH );
+
+} 
+
 void VegaXmlPlotter::exec_Loop( string _path ){
 	DSCOPE();
 	vector<string> states;
@@ -105,13 +155,17 @@ void VegaXmlPlotter::exec_Loop( string _path ){
 	string v = "%s";
 
 
-
+	/***************************************/
+	/* LOOP over predefined states */
 	if ( config.exists( _path + ":states" ) )
 		states = config.getStringVector( _path +":states" );
 
 	if ( config.exists( _path + ":var" ) )
 		var = config.getString( _path + ":var" );
 
+
+	/***************************************/
+	/* LOOP as an incrementation */
 	// support arange
 	if ( states.size() == 0 && config.exists( _path + ":arange" ) ){
 		vector<float> pars = config.getFloatVector( _path + ":arange" );
@@ -139,6 +193,8 @@ void VegaXmlPlotter::exec_Loop( string _path ){
 		}
 	}
 
+	/***************************************/
+	/* LOOP as a RANGE */
 	// suport a range 
 	if ( config.tagName( _path ) == "RangeLoop" ){
 
@@ -180,6 +236,16 @@ void VegaXmlPlotter::exec_Loop( string _path ){
 	}
 	
 	
+
+	/***************************************/
+	/* LOOP as a GLOB */
+	if ( config.exists( _path + ":glob" ) ){
+		vector<string> gstates = glob( config.get<string>( _path + ":glob" ) );
+		// append these to the states to loop over
+		for ( string &s : gstates ){
+			states.push_back( s );
+		}
+	}
 
 
 	// Used for Transforms or organization
@@ -227,7 +293,7 @@ void VegaXmlPlotter::exec_Plot( string _path ) {
 	// 	gStyle->SetPalette( config.getInt( _path + ".Palette" ) );
 	// }
 
-	vector<string> tlp = { "Margins", "StatBox", "Scope", "Loop", "Histo", "Graph", "TF1", "TLine", "TLatex", "Rect", "Ellipse", "Assign", "Format", "Palette" };
+	vector<string> tlp = { "Margins", "StatBox", "Scope", "Loop", "Histo", "Graph", "TF1", "TLine", "TLatex", "Rect", "Ellipse", "Assign", "Format", "Palette", "ColorAxis" };
 	vector<string> paths = config.childrenOf( _path, 1 );
 	for ( string p : paths ){
 		string tag = config.tagName( p );
@@ -303,6 +369,7 @@ void VegaXmlPlotter::exec_Export( string _path ){
 	DSCOPE();
 	TPad * _pad = (TPad*)gPad;
 	
+	LOG_F(INFO, "ROOT gPad is %p", gPad);
 	if ( !config.exists( _path + ":url" ) ) return;
 
 	string url = config.getXString( _path + ":url" );
@@ -392,7 +459,15 @@ void VegaXmlPlotter::exec_Histo( string _path ){
 		gROOT->ProcessLine( cmd.c_str() );
 	}
 
-	TPaveStats *st = (TPaveStats*)h->GetListOfFunctions()->FindObject("stats");
+	string drawCommand = config.get<string>( _path + ":draw" );
+	std::transform(drawCommand.begin(), drawCommand.end(), drawCommand.begin(), ::tolower);
+	DLOG( "draw command = \"%s\"", drawCommand.c_str() );
+	if ( drawCommand.find( "same" ) == std::string::npos ){
+		LOG_F( INFO, "Setting current FRAME to %s ==> %s", fqn.c_str(), h->GetName() );
+		current_frame = h;
+	}
+
+	//TPaveStats *st = (TPaveStats*)h->GetListOfFunctions()->FindObject("stats");
 	// if ( nullptr != st  ){
 	// 	LOG_F( INFO, "Exec positionOptStats( %s, %p )", _path.c_str(), st );
 	// 	positionOptStats( _path, st );
@@ -749,24 +824,31 @@ void VegaXmlPlotter::exec_TLegend( string _path ){
 	leg->Draw( );
 } // exec_TLegend
 
+void VegaXmlPlotter::exec_Clear( string _path ){
+	if ( nullptr != xcanvas && nullptr != xcanvas->getCanvas()  ){
+		LOG_F( INFO, "Clearing canvas" );
+		xcanvas->getCanvas()->Clear();
+	} else {
+		LOG_F( ERROR, "Cannot clear null xcanvas" );
+	}
+}
+
 void VegaXmlPlotter::exec_Canvas( string _path ){
 	DSCOPE();
 
 	xcanvas = new XmlCanvas( config, _path );
-
-	exec_children( _path, "Loop" );
-	exec_children( _path, "Pad" );
-	
-	xcanvas->getCanvas()->Modified();
-	xcanvas->getCanvas()->Update();
+	LOG_F( INFO, "Created ROOT Canvas = %p (name=%s)", (TPad*)xcanvas->rootCanvas, xcanvas->name.c_str() );
+	LOG_F( INFO, "Canvas with grid( ncol=%d, nrow=%d )", xcanvas->nCol, xcanvas->nRow );
 
 	gPad = (TPad*) xcanvas->getCanvas();
 	gPad->SetFillColor(0); 
 	gPad->SetFillStyle(0);
 
+	exec_children( _path );
 
-
-	exec_children( _path, "Export" );
+	// exec_children( _path, "Loop" );
+	// exec_children( _path, "Pad" );
+	// exec_children( _path, "Export" );
 } // exec_Canvas
 
 void VegaXmlPlotter::exec_Pad( string _path ){
@@ -781,8 +863,18 @@ void VegaXmlPlotter::exec_Pad( string _path ){
 		return;
 	}
 
+	LOG_F( INFO, "Creating pad %s on xcanvas=%p", n.c_str(), xcanvas );
+	xcanvas->createPad( config, _path );
+
+	LOG_F( INFO, "Activating pad %s", n.c_str() );
 	XmlPad * xpad = xcanvas->activatePad( n );
 
+	if ( nullptr == xpad ){
+		LOG_F( ERROR, "Cannot make xpad, %s", n.c_str() );
+		return;
+	}
+
+	LOG_F( INFO, "Getting the pad handle" );
 	TPad * p = xpad->getRootPad();
 	p->SetFillColor(0);
 	p->SetFillStyle(0);
@@ -791,12 +883,20 @@ void VegaXmlPlotter::exec_Pad( string _path ){
 
 	// move pad to origin
 	xpad->moveToOrigin();
+	LOG_F( INFO, "Updating Pad" );
 	xpad->getRootPad()->Update();
 	
+	LOG_F( INFO, "Drawing Plot" );
 	exec_Plot( _path );
 
+	LOG_F( INFO, "Repositioning and updating Pad" );
 	xpad->reposition();
 	xpad->getRootPad()->Update();
+
+	xcanvas->getCanvas()->Modified();
+	xcanvas->getCanvas()->Update();
+
+	gPad = (TPad*) xcanvas->getCanvas();
 }
 
 void VegaXmlPlotter::exec_Margins( string _path ){
