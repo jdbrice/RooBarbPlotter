@@ -43,7 +43,7 @@ common_env.Append(LIBPATH 		= [ "/usr/local/lib" ] )
 common_env[ "_LIBFLAGS" ] = common_env[ "_LIBFLAGS" ] + " " + ROOTLIBS + " " 
 
 
-jdb_log_level = ARGUMENTS.get( "ll", 0 )
+jdb_log_level = ARGUMENTS.get( "ll", 10 )
 vega_debug = ARGUMENTS.get( "debug", 0 )
 common_env.Append(CXXFLAGS 		= "-DJDB_LOG_LEVEL=" + str(jdb_log_level) )
 
