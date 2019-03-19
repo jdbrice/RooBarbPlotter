@@ -47,6 +47,13 @@ jdb_log_level = ARGUMENTS.get( "ll", 10 )
 vega_debug = ARGUMENTS.get( "debug", 0 )
 common_env.Append(CXXFLAGS 		= "-DJDB_LOG_LEVEL=" + str(jdb_log_level) )
 
+json_export = ARGUMENTS.get( "json", 1 )
+
+if int(json_export) > 0 :
+	print( "Compiling with support for JSON" )
+	common_env.Append(LIBS = [ "libRIO" ] )
+	common_env.Append(CXXFLAGS 		= "-DJSON_EXPORT=1" )
+
 #print "DEBUG ", vega_debug
 if int(vega_debug) > 0 :
 	#print "DEBUG ENABLED"

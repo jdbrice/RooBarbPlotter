@@ -2,7 +2,7 @@
 
 
 
-make_sample_data(){
+void make_sample_data(){
 
     TFile *f = new TFile( "sample_data.root", "RECREATE" );
 

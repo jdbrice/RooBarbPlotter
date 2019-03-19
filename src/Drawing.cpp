@@ -18,7 +18,9 @@
 #include "TEllipse.h"
 #include "TPaletteAxis.h"
 
-// #include "TBufferJSON.h"
+#ifdef JSON_EXPORT
+#include "TBufferJSON.h"
+#endif
 
 #include <thread>
 
@@ -374,11 +376,15 @@ void VegaXmlPlotter::exec_Export( string _path ){
 
 	string url = config.getXString( _path + ":url" );
 	if ( url.find( ".json" ) != string::npos ){
-		// TBufferJSON::ExportToFile( url.c_str(), _pad );
-		// LOG_F( INFO, "%s",  );
-		// ofstream fout( url.c_str() );
-		// fout << TBufferJSON::ConvertToJSON( _pad ).Data();
-		// fout.close();
+#ifdef JSON_EXPORT
+		TBufferJSON::ExportToFile( url.c_str(), _pad );
+		
+		ofstream fout( url.c_str() );
+		fout << TBufferJSON::ConvertToJSON( _pad ).Data();
+		fout.close();
+#else
+		LOG_F( INFO, "JSON export requires compiling with libRIO" );
+#endif
 	} else {
 		_pad->Print( url.c_str() );
 	}
