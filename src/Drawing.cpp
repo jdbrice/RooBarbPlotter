@@ -800,7 +800,7 @@ void VegaXmlPlotter::exec_TLegend( string _path ){
 		// Add an entry for all histograms by default if no <Entry> nodes found
 		for ( auto kv : histos ){
 			string t = config.getString(  _path + "." + kv.first+ ":title", kv.first) ;
-			string opt = config.getString(  _path + "." + kv.first+ ":opt", "l") ;
+			string opt = config.getString(  _path + "." + kv.first+ ":opt",  config.get<string>( _path + ":opt", "l" ) ) ;
 			leg->AddEntry( kv.second, t.c_str(), opt.c_str() );
 		}
 	}

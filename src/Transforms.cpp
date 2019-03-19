@@ -291,11 +291,13 @@ void VegaXmlPlotter::exec_transform_MultiAdd( string _path ){
 
 	TH1 * hFirst = findHistogram( d, n[0] );
 	if ( nullptr == hFirst ){
-		// ERRORC( "Hit Null Histo " << n[0] );
+		LOG_F( ERROR, "Cannot find first histogram %s/%s", d.c_str(), n[0].c_str() );
 		return;
 	}
 	TH1 * hSum = (TH1*)hFirst->Clone( nn.c_str() );
 
+
+	LOG_F( INFO, "Adding %lu Histograms", n.size() );
 	for ( int i = 1; i < n.size(); i++ ){
 		TH1 * h = findHistogram( d, n[i] );
 		if ( nullptr == h ) {
@@ -382,9 +384,8 @@ void VegaXmlPlotter::exec_transform_Difference( string _path){
 	string n = config.getXString( _path + ":name" );
 	string nn = config.getXString( _path + ":save_as" );
 
-	string opt = config.get<string>( _path +":opt", "" );
-	float c1 = config.get<float>( _path +":c1", 1.0 );
-	float c2 = config.get<float>( _path +":c2", 1.0 );
+	bool rel  = config.exists( _path +":relative" ) | config.exists( _path +":rel" );
+	bool absv = config.exists( _path +":absolute" ) | config.exists( _path +":abs" );
 
 	TH1 * hA = findHistogram( _path, 0, "A" );
 	TH1 * hB = findHistogram( _path, 0, "B" );
@@ -394,10 +395,14 @@ void VegaXmlPlotter::exec_transform_Difference( string _path){
 	}
 
 
-	if ( "" == opt ){
+	if ( !rel && !absv ){
 		LOG_F( INFO, "%s = %s - %s", nn.c_str(), hA->GetName(), hB->GetName() );
-	} else if ( "rel" == opt ){
+	} else if ( rel && !absv){
 		LOG_F( INFO, "%s = (%s - %s) / %s", nn.c_str(), hA->GetName(), hB->GetName(), hA->GetName() );
+	} else if ( !rel && absv ){
+		LOG_F( INFO, "%s = |%s - %s|", nn.c_str(), hA->GetName(), hB->GetName() );
+	} else if ( rel && absv){
+		LOG_F( INFO, "%s = |%s - %s| / %s", nn.c_str(), hA->GetName(), hB->GetName(), hA->GetName() );
 	}
 	TH1 * hOther = (TH1*) hA->Clone( nn.c_str() );
 	hOther->Reset(); // we just want the binning
@@ -413,7 +418,11 @@ void VegaXmlPlotter::exec_transform_Difference( string _path){
 		float value = vA - vB;
 		float error = eA + eB;
 
-		if ( "rel" == opt ){
+		if ( absv ){
+			value = abs( value );
+		}
+
+		if ( rel  && abs(vA) > 0){
 			value = value / vA;
 			error = error / vA;
 		}

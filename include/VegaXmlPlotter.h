@@ -151,39 +151,10 @@ public:
 	virtual void loadData();
 
 	virtual TObject* findObject( string _data );
-	virtual TH1* findHistogram( string _data, string _name );
+	virtual TH1* findHistogram( string _data, string _name, string _path ="", int iHist=-1 );
 	virtual TH1* findHistogram( string _path, int iHist, string _mod="" );
-	// virtual TH1* makeHistogram( string _path, string &fqn );
-	// virtual TGraph* makeGraph( string _path, string &fqn );
-	// virtual map<string, shared_ptr<TF1> > makeTF( string _path );
-
-	// Transforms
-	// virtual void makeTransforms();
-	// virtual void makeTransform( string _tpath );
-	// virtual void makeProjection( string _path );
-	// virtual void makeProjectionX( string _path);
-	// virtual void makeProjectionY( string _path);
-	// virtual void makeMultiAdd( string _path);
-	// virtual void makeAdd( string _path);
-	// virtual void makeDivide( string _path);
-	// virtual void makeRebin( string _path);
-	// virtual void makeScale( string _path);
-	// virtual void makeDraw( string _path);
-	// virtual void makeClone( string _path );
-	// virtual void makeSmooth( string _path );
-	// virtual void makeCDF( string _path );
-	// virtual void transformStyle( string _path );
-	// virtual void makeSetBinError( string _path );
-	// virtual void makeBinLabels( string _path );
-
-	// Canvas based form
-	// virtual void makeCanvases();
-	// virtual void drawCanvas( string _path );
-
-
 	virtual TH1* makeHistoFromDataTree( string _path, int iHist );
-
-	virtual void positionOptStats( string _path, TPaveStats * st );
+	// virtual void positionOptStats( string _path, TPaveStats * st );
 
 	// virtual TCanvas* makeCanvas( string _path );
 

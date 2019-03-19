@@ -322,41 +322,12 @@ TObject* VegaXmlPlotter::findObject( string _path ){
 	return nullptr;
 } // findObject
 
-TH1 *VegaXmlPlotter::findHistogram( string _data, string _name ){
+TH1 *VegaXmlPlotter::findHistogram( string _data, string _name, string _path, int iHist ){
 	DSCOPE();
 	DLOG( "_data=%s, _name=%s", _data.c_str(), _name.c_str() );
 
-	// TODO: add support for splitting name inot data and name by "/"
-	
-	if ( "" == _data && _name.find( "/" ) != string::npos ){
-		_data = dataOnly( _name );
-		_name = nameOnly( _name );
-	}
-
-	string tdata = _data;
-	if ( "" == _data && dataFiles.size() >= 1 ) tdata = dataFiles.begin()->first;
-	if ( dataFiles.count( tdata ) > 0 && dataFiles[ tdata ] ){
-		if ( nullptr == dataFiles[ tdata ]->Get( _name.c_str() ) ) return nullptr;
-		TH1 * h = (TH1*)dataFiles[ tdata ]->Get( _name.c_str() );
-		//INFO( classname(), "Found Histogram [" << _name << "]= " << h << " in data file " << tdata );
-		return h;
-	}
-
-	// finally look for histos we made and named in the ttree drawing
-	if ( globalHistos.count( _name ) > 0 && globalHistos[ _name ] ){
-		//INFOC( "Found histogram in mem pool" );
-		return globalHistos[ _name ];
-	}
-
-	return nullptr;
-} // findHistogram
-
-TH1* VegaXmlPlotter::findHistogram( string _path, int iHist, string _mod ){
-	DSCOPE();
-	DLOG( "_path=%s, iHist=%d, _mod=%s", _path.c_str(), iHist, _mod.c_str() );
-
-	string data = config.getXString( _path + ":data" + _mod, config.getXString( _path + ":data" ) );
-	string name = config.getXString( _path + ":name" + _mod, config.getXString( _path + ":name" + _mod ) );
+	string data = _data;
+	string name = _name;
 
 	if ( "" == data && name.find( "/" ) != string::npos ){
 		data = dataOnly( name );
@@ -379,8 +350,8 @@ TH1* VegaXmlPlotter::findHistogram( string _path, int iHist, string _mod ){
 	//INFO( classname(), "Looking for [" << name << "] in " << data << "=(" << dataFiles[data] <<")" );
 	// first check for a normal histogram from a root file
 	if ( dataFiles.count( data ) > 0 && dataFiles[ data ] ){
-		
-		
+
+
 		TH1 * h = (TH1*)dataFiles[ data ]->Get( name.c_str() );
 		if ( nullptr != h ){
 			h = (TH1*)h->Clone( (string("hist_") + h->GetName() ).c_str() );
@@ -403,9 +374,17 @@ TH1* VegaXmlPlotter::findHistogram( string _path, int iHist, string _mod ){
 		return globalHistos[ name ];
 	}
 
-
-
 	return nullptr;
+} // findHistogram
+
+TH1* VegaXmlPlotter::findHistogram( string _path, int iHist, string _mod ){
+	DSCOPE();
+	DLOG( "_path=%s, iHist=%d, _mod=%s", _path.c_str(), iHist, _mod.c_str() );
+
+	string data = config.getXString( _path + ":data" + _mod, config.getXString( _path + ":data" ) );
+	string name = config.getXString( _path + ":name" + _mod, config.getXString( _path + ":name" + _mod ) );
+
+	return findHistogram( data, name, _path, iHist );
 } //findHistogram
 
 TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
@@ -493,36 +472,6 @@ TH1* VegaXmlPlotter::makeHistoFromDataTree( string _path, int iHist ){
 
 	return h;
 } // makeHistoFromDataTree
-
-
-
-void VegaXmlPlotter::positionOptStats( string _path, TPaveStats * st ){
-	DSCOPE();
-	if ( nullptr == st ) return;
-
-	vector<double> pos = config.getDoubleVector( "OptStats" );
-
-	// global first
-	if ( config.exists( "OptStats:x1" ) )
-		st->SetX1NDC( config.getFloat( "OptStats:x1" ) );
-	if ( config.exists( "OptStats:x2" ) )
-		st->SetX2NDC( config.getFloat( "OptStats:x2" ) );
-	if ( config.exists( "OptStats:y1" ) )
-		st->SetY1NDC( config.getFloat( "OptStats:y1" ) );
-	if ( config.exists( "OptStats:y2" ) )
-		st->SetY2NDC( config.getFloat( "OptStats:y2" ) ); 
-	
-	// local 
-	if ( config.exists( _path + ".OptStats:x1" ) )
-		st->SetX1NDC( config.getFloat( _path + ".OptStats:x1" ) );
-	if ( config.exists( _path + ".OptStats:x2" ) )
-		st->SetX2NDC( config.getFloat( _path + ".OptStats:x2" ) );
-	if ( config.exists( _path + ".OptStats:y1" ) )
-		st->SetY1NDC( config.getFloat( _path + ".OptStats:y1" ) );
-	if ( config.exists( _path + ".OptStats:y2" ) )
-		st->SetY2NDC( config.getFloat( _path + ".OptStats:y2" ) ); 
-} // positionOptStats
-
 
 
 map<string, TObject*> VegaXmlPlotter::dirMap( TDirectory *dir, string prefix, bool dive ) {
