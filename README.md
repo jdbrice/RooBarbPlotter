@@ -146,6 +146,3 @@ Clones histogram `ha` from data `d` into `hout`
 	virtual void makeSetBinError( string _path );
 	virtual void makeBinLabels( string _path );
 	virtual void makeSumw2( string _path );
-
-
-
