@@ -46,13 +46,18 @@ void VegaXmlPlotter::exec_TCanvas( string _path ){
 	}
 
 	c->SetFillColor(0); 
-	c->SetFillStyle(4000);
+	c->SetFillStyle(0);
 
 	c->cd();
 	c->Modified();
 	c->Draw(); 
 	c->Show();
 	gPad = c;
+	
+	gPad->SetFrameFillColor(0);
+	gPad->SetFrameFillStyle(4000);
+
+
 	//return c;
 } // exec_TCanvas
 
@@ -692,7 +697,7 @@ void VegaXmlPlotter::exec_TLegend( string _path ){
 	x2 = config.getDouble( _path + ".Position:x2", 0.5 );
 	y2 = config.getDouble( _path + ".Position:y2", 0.9 );
 
-	string spos = config.getXString( _path + ".Position:pos" );
+	string spos = config.getXString( _path + ".Position:pos", config.getXString( _path + ".Position:align" ) );
 
 	float w = config.getFloat( _path + ".Position:w", 0.4 );
 	float h = config.getFloat( _path + ".Position:h", 0.2 );
