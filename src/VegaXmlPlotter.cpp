@@ -154,11 +154,16 @@ void VegaXmlPlotter::make(){
 
 	// Top level nodes
 	vector<string> tlp = { "Script", "TCanvas", "Margins", "Plot", "Loop", "RangeLoop", "Canvas", "Transforms", "Transform" };
+	vector<string> known_but_not_processed = { "Data", "arg", "argc", "jobIndex" };
 	paths = config.childrenOf( "", 1 );
 	for ( string p : paths ){
 		string tag = config.tagName( p );
 		if ( std::find( tlp.begin(), tlp.end(), tag ) != tlp.end() ){
 			exec_node( p );
+		} else {
+			if ( std::find( known_but_not_processed.begin(), known_but_not_processed.end(), tag ) == known_but_not_processed.end() ){
+				LOG_F( WARNING, "Found unrecognized node = %s, not processed here", tag.c_str() );
+			}
 		}
 	}
 

@@ -301,21 +301,25 @@ void VegaXmlPlotter::exec_Plot( string _path ) {
 	// }
 
 	vector<string> tlp = { "Margins", "StatBox", "Scope", "Loop", "Histo", "Graph", "TF1", "TLine", "TLatex", "Rect", "Ellipse", "Assign", "Format", "Palette", "ColorAxis" };
+	vector<string> known_but_not_processed = { "Export" };
 	vector<string> paths = config.childrenOf( _path, 1 );
 	for ( string p : paths ){
 		string tag = config.tagName( p );
-		if ( std::find( tlp.begin(), tlp.end(), tag ) != tlp.end() )
+		if ( std::find( tlp.begin(), tlp.end(), tag ) != tlp.end() ){
 			exec_node( p );
+		} else {
+			if ( std::find( known_but_not_processed.begin(), known_but_not_processed.end(), tag ) == known_but_not_processed.end() ){
+				LOG_F( WARNING, "Found unrecognized node inside <Plot/>, node = %s", tag.c_str() );
+			}
+		}
 	}
 
 	// Make LAtex on global scope for ease
 	exec_children( "", "TLatex" );
-
-
-
-	// makeLegend( _path, histos, graphs, funcs );
 	
+	// Make the legend if it is given
 	exec_children( _path, "Legend" );
+	// Export the Plot if desired
 	exec_children( _path, "Export" );
 } // exec_Plot
 

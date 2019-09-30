@@ -461,6 +461,36 @@ void VegaXmlPlotter::exec_transform_Rebin( string _path ){
 	string nn = config.getXString( _path + ":save_as" );
 	TH1 * hOther = nullptr;//((TH1*)h)->Clone( nn.c_str() );
 
+	// preempt the complicated one with simple rebin of one axis
+	if ( config.get<int>( _path +":x" ) > 1 ){
+		LOG_F( INFO, "Rebin X axis by %d", config.get<int>( _path +":x" ) );
+		hOther = h->RebinX( config.get<int>( _path +":x" ) );
+		globalHistos[nn] = hOther;
+	}
+	if ( config.get<int>( _path +":y" ) > 1 ){
+		LOG_F( INFO, "Rebin Y axis by %d", config.get<int>( _path +":y" ) );
+		if ( nullptr == hOther )
+			hOther = static_cast<TH2*>(h)->RebinY( config.get<int>( _path +":y" ) );
+		else 
+			hOther = static_cast<TH2*>(hOther)->RebinY( config.get<int>( _path +":y" ) );
+		globalHistos[nn] = hOther;
+	}
+	if ( config.get<int>( _path +":z" ) > 1 ){
+		LOG_F( INFO, "Rebin Z axis by %d", config.get<int>( _path +":z" ) );
+		if ( nullptr == hOther )
+			hOther = static_cast<TH3*>(h)->RebinZ( config.get<int>( _path +":z" ) );
+		else 
+			hOther = static_cast<TH3*>(hOther)->RebinZ( config.get<int>( _path +":z" ) );
+		globalHistos[nn] = hOther;
+		
+	}
+
+	if ( config.get<int>( _path +":x", 0 ) > 1 || config.get<int>( _path +":y", 0 ) > 1 || config.get<int>( _path +":z", 0 ) > 1){
+		return;
+	}
+
+
+
 	HistoBins bx, by, bz;
 	if ( config.exists( _path +":bins_x" )  ){
 		if ( config.exists( config.getXString( _path+":bins_x" ) ) ){
@@ -468,7 +498,7 @@ void VegaXmlPlotter::exec_transform_Rebin( string _path ){
 		} else {
 			bx.load( config, _path + ":bins_x" );
 		}
-		if ( 0 == bx.nBins() ){
+		if ( 0 == bx.nBins() ){ 
 			LOG_F( WARNING, "Cannot make x bins" );
 		}
 	}
