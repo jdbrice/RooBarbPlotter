@@ -301,7 +301,7 @@ void VegaXmlPlotter::exec_Plot( string _path ) {
 	// }
 
 	vector<string> tlp = { "Margins", "StatBox", "Scope", "Loop", "Histo", "Graph", "TF1", "TLine", "TLatex", "Rect", "Ellipse", "Assign", "Format", "Palette", "ColorAxis" };
-	vector<string> known_but_not_processed = { "Export" };
+	vector<string> known_but_not_processed = { "Export", "Legend", "Axes" };
 	vector<string> paths = config.childrenOf( _path, 1 );
 	for ( string p : paths ){
 		string tag = config.tagName( p );
@@ -411,6 +411,12 @@ void VegaXmlPlotter::exec_StatBox( string _path ){
 		// it will def be length 2
 		pos.push_back( -1 ); pos.push_back( -1 );
 	}
+
+    vector<float> size = config.getFloatVector( _path + ":size" );
+    if ( size.size() >= 2 ){
+        w = size[0];
+        h = size[1];
+    }
 
 	gStyle->SetOptStat( value );
 	if ( config.exists( _path + ":f" ) || config.exists( _path + ":fit" ) ){
@@ -531,32 +537,55 @@ void VegaXmlPlotter::exec_TF1( string _path ){
 	DSCOPE();
 	RooPlotLib rpl;
 
-	XmlFunction xf;
-	xf.set( config, _path );
+    // two handles here
 
-	TF1 * f = xf.getTF1().get();
-	if ( nullptr == f ) {
-		LOG_F( ERROR, "Cannot make TF1 @ %s", _path.c_str() );
-		return;
-	}
-	f = (TF1*)f->Clone( (f->GetTitle() + string("_clone")).c_str() );
+    // just draw the pre-defined formula
+    if ( config.exists( _path + ":formula" ) ){
+        XmlFunction xf;
+        xf.set( config, _path );
+
+        TF1 * f = xf.getTF1().get();
+        if ( nullptr == f ) {
+            LOG_F( ERROR, "Cannot make TF1 @ %s", _path.c_str() );
+            return;
+        }
+        f = (TF1*)f->Clone( (f->GetTitle() + string("_clone")).c_str() );
+
+        
+        LOG_F( INFO, "%s", f->GetTitle() );
+        LOG_F( INFO, "Eval f(0)=%f", f->Eval( 1.0 ) );
+
+        // set meta info
+        config.set( "ClassName", xf.getTF1()->ClassName() );
+
+        string name = config.getXString( _path + ":name" );
+        string data = config.getXString( _path + ":data" );
+        
+        string fqn = fullyQualifiedName( data, name );
+
+        rpl.style( f ).set( config, _path ).set( config, _path + ":style" ).set( config, _path + ".style" ).draw( "same" );
+
+        funcs[ nameOnly(fqn) ]  = f;
+        funcs[ fqn ]            = f;
+    } else {
+        // try to find a function from (TODO file) or transform object
+        string name = config.getXString( _path + ":name" );
+        string data = config.getXString( _path + ":data" );
+
+        // TODO support read from data file
+        if ( globalTF1s.count( name ) >= 1 ){
+
+            TF1 * ff = globalTF1s[name];
+            ff->Draw("same");
+
+        } else {
+            LOG_F( ERROR, "Cannot find TF1 named %s", name.c_str() );
+            return;
+        }
+
+    }
 
 	
-	LOG_F( INFO, "%s", f->GetTitle() );
-	LOG_F( INFO, "Eval f(0)=%f", f->Eval( 1.0 ) );
-
-	// set meta info
-	config.set( "ClassName", xf.getTF1()->ClassName() );
-
-	string name = config.getXString( _path + ":name" );
-	string data = config.getXString( _path + ":data" );
-	
-	string fqn = fullyQualifiedName( data, name );
-
-	rpl.style( f ).set( config, _path ).set( config, _path + ":style" ).set( config, _path + ".style" ).draw( "same" );
-
-	funcs[ nameOnly(fqn) ]  = f;
-	funcs[ fqn ] 			= f;
 } // exec_TF1
 
 void VegaXmlPlotter::exec_TLine( string _path){
