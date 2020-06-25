@@ -62,6 +62,8 @@ public:
 	VegaXmlPlotter() {}
 	~VegaXmlPlotter() {}
 
+	void help();
+
 	virtual void init();
 	virtual void make();
 
@@ -120,6 +122,7 @@ public:
 	virtual void exec_transform_Print( string _path );
 	virtual void exec_transform_Proof( string _path );
 	virtual void exec_transform_List( string _path );
+    virtual void exec_transform_Fit( string _path );
 
 
 	virtual bool exec( string tag, string _path ){
@@ -140,6 +143,7 @@ public:
 	map<string, TFile*> dataFiles;
 	map<string, TChain *> dataChains;
 	map<string, TH1 * > globalHistos;
+    map<string, TF1 * > globalTF1s;
 	map<string, TGraph * > globalGraphs;
 
 	// bool initializedGROOT = false;

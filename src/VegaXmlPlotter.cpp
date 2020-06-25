@@ -89,8 +89,16 @@ void VegaXmlPlotter::init(){
 	handle_map[ "Print"        ] = &VegaXmlPlotter::exec_transform_Print;
 	handle_map[ "Proof"        ] = &VegaXmlPlotter::exec_transform_Proof;
 	handle_map[ "List"         ] = &VegaXmlPlotter::exec_transform_List;
+    handle_map[ "Fit"          ] = &VegaXmlPlotter::exec_transform_Fit;
 
 } // init
+
+void VegaXmlPlotter::help(){
+	cout << "Allowed NODES : " << endl;
+	for ( auto kv : handle_map ){
+		cout << kv.first << endl;
+	}
+}
 
 void VegaXmlPlotter::exec_node( string _path ){
 	DSCOPE();
@@ -126,6 +134,11 @@ string VegaXmlPlotter::random_string( size_t length ){
 void VegaXmlPlotter::make(){
 	DSCOPE();
 
+	if (config.exists( "help" ) ){
+		help();
+		return;
+	}
+
 
 	// Load data first
 	vector<string> dpaths = config.childrenOf( "", "Data" );
@@ -154,7 +167,7 @@ void VegaXmlPlotter::make(){
 
 	// Top level nodes
 	vector<string> tlp = { "Script", "TCanvas", "Margins", "Plot", "Loop", "RangeLoop", "Canvas", "Transforms", "Transform" };
-	vector<string> known_but_not_processed = { "Data", "arg", "argc", "jobIndex" };
+	vector<string> known_but_not_processed = { "Data", "arg", "argc", "jobIndex", "TFile" };
 	paths = config.childrenOf( "", 1 );
 	for ( string p : paths ){
 		string tag = config.tagName( p );
@@ -386,8 +399,10 @@ TH1* VegaXmlPlotter::findHistogram( string _path, int iHist, string _mod ){
 	DSCOPE();
 	DLOG( "_path=%s, iHist=%d, _mod=%s", _path.c_str(), iHist, _mod.c_str() );
 
-	string data = config.getXString( _path + ":data" + _mod, config.getXString( _path + ":data" ) );
-	string name = config.getXString( _path + ":name" + _mod, config.getXString( _path + ":name" + _mod ) );
+	string data = config.getXString( _path + ":data" + _mod, "" );
+
+	// if name is not given use mod directly!
+	string name = config.getXString( _path + ":name" + _mod, config.getXString( _path + ":" + _mod ) );
 
 	return findHistogram( data, name, _path, iHist );
 } //findHistogram
