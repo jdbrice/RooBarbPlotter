@@ -356,8 +356,12 @@ void VegaXmlPlotter::exec_transform_Divide( string _path){
 	TH1 * hNum = findHistogram( _path, 0, "A" );
 	TH1 * hDen = findHistogram( _path, 0, "B" );
 	if ( nullptr == hNum || nullptr == hDen ) {
-		LOG_F( ERROR, "Numerator=%p, Denominator=%p, something is NULL", hNum, hDen );
-		return;
+		hNum = findHistogram( _path, 0, "num" );
+		hDen = findHistogram( _path, 0, "den" );
+		if ( nullptr == hNum || nullptr == hDen ) {
+			LOG_F( ERROR, "Numerator=%p, Denominator=%p, something is NULL", hNum, hDen );
+			return;
+		}
 	}
 
 	LOG_F( INFO, "%s = %s / %s", nn.c_str(), hNum->GetName(), hDen->GetName() );
@@ -462,12 +466,12 @@ void VegaXmlPlotter::exec_transform_Rebin( string _path ){
 	TH1 * hOther = nullptr;//((TH1*)h)->Clone( nn.c_str() );
 
 	// preempt the complicated one with simple rebin of one axis
-	if ( config.get<int>( _path +":x" ) > 1 ){
+	if ( config.get<int>( _path +":x" ) >= 1 ){
 		LOG_F( INFO, "Rebin X axis by %d", config.get<int>( _path +":x" ) );
 		hOther = h->RebinX( config.get<int>( _path +":x" ) );
 		globalHistos[nn] = hOther;
 	}
-	if ( config.get<int>( _path +":y" ) > 1 ){
+	if ( config.get<int>( _path +":y" ) >= 1 ){
 		LOG_F( INFO, "Rebin Y axis by %d", config.get<int>( _path +":y" ) );
 		if ( nullptr == hOther )
 			hOther = static_cast<TH2*>(h)->RebinY( config.get<int>( _path +":y" ) );
@@ -475,7 +479,7 @@ void VegaXmlPlotter::exec_transform_Rebin( string _path ){
 			hOther = static_cast<TH2*>(hOther)->RebinY( config.get<int>( _path +":y" ) );
 		globalHistos[nn] = hOther;
 	}
-	if ( config.get<int>( _path +":z" ) > 1 ){
+	if ( config.get<int>( _path +":z" ) >= 1 ){
 		LOG_F( INFO, "Rebin Z axis by %d", config.get<int>( _path +":z" ) );
 		if ( nullptr == hOther )
 			hOther = static_cast<TH3*>(h)->RebinZ( config.get<int>( _path +":z" ) );
@@ -891,8 +895,21 @@ void VegaXmlPlotter::exec_transform_Assign( string _path ){
 }
 
 void VegaXmlPlotter::exec_transform_Print( string _path ){
+    // TODO add file support?
+    if ( config.exists( _path + ":msg" ) == false ){
+        LOG_F( INFO, "Provide a message in :msg" );
+        LOG_F( INFO, "---- :to (default=``)- if set to `stdout` then message will also be printed to stdout" );
+        LOG_F( INFO, "---- :endl (default=true) - set to `false` to avoid line break after message" );
+    }
 	string msg = config.getString( _path + ":msg" );
 	LOG_F(INFO, "%s", msg.c_str());
+
+    if ( config.get<string>( _path + ":to" ) == "stdout" ){
+        cout << msg << std::flush;  
+        if ( config.get<bool>( _path + ":endl", true ) ){
+            cout << endl;
+        }
+    }
 }
 
 void VegaXmlPlotter::exec_transform_Format( string _path ){
@@ -991,4 +1008,44 @@ void VegaXmlPlotter::exec_transform_List( string _path ){
 	} else {
 		LOG_F( WARNING, "Data file name=%s NOT FOUND", data.c_str() );
 	}
+}
+
+void VegaXmlPlotter::exec_transform_Fit( string _path ){
+    if ( !config.exists( _path + ":save_as" ) ){
+        LOG_F( ERROR, "<Fit/> Must have a save_as attribute" );
+        return;
+    }
+
+    string d = config.getXString( _path + ":data" );
+    string n = config.getXString( _path + ":name" );
+
+    TH1 * h = findHistogram( _path, 0 );
+    if ( nullptr == h ) {
+        LOG_F( ERROR, "could not find histo %s %s", d.c_str(), n.c_str() );
+        return;
+    }
+
+    string nn = config.getString( _path + ":save_as" );
+    string fdef = config.getString( _path + ":formula", config.getString( _path + ":f" ) );
+    if ( fdef == "" ){
+        LOG_F( ERROR, "Must provide :formula or :f to define function" );
+        return;
+    }
+    TF1 * ff = new TF1( nn.c_str(), fdef.c_str() );
+
+    string fopt = config.getString( _path + ":opt", "" );
+
+    if ( config.exists( _path + ":range" ) ){
+        vector<float> xrange = config.getFloatVector( _path + ":range" );
+        if ( xrange.size() >= 2 ){
+            ff->SetRange( xrange[0], xrange[1] );
+            fopt = fopt + "R";
+            h->Fit( ff, fopt.c_str(), "", xrange[0], xrange[1] );
+        }
+        
+    } else {
+        h->Fit( ff, fopt.c_str() );
+    }
+    
+    globalTF1s[ nn ] = ff;
 }
